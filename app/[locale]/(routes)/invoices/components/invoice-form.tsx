@@ -18,6 +18,7 @@ import {
 import { LineItemsEditor, LineItemRow } from "./line-items-editor";
 import { TotalsPanel } from "./totals-panel";
 import { AccountSearchCombobox } from "@/components/ui/account-search-combobox";
+import { CurrencyCombobox } from "@/components/ui/currency-combobox";
 import { InvoicePdfLivePreview, type InvoicePreviewPayload } from "./invoice-pdf-live-preview";
 import { INVOICE_TYPES } from "@/types/invoice";
 import { createInvoice } from "@/actions/invoices/create-invoice";
@@ -323,18 +324,11 @@ export function InvoiceForm({
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>{l.currency ?? "Currency"}</Label>
-              <Select value={currency} onValueChange={setCurrency}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {currencies.map((c) => (
-                    <SelectItem key={c.code} value={c.code}>
-                      {c.code} - {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <CurrencyCombobox
+                currencies={currencies}
+                value={currency}
+                onChange={setCurrency}
+              />
             </div>
 
             <div className="space-y-2">
@@ -343,6 +337,7 @@ export function InvoiceForm({
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
+                className="w-full max-w-[200px]"
               />
             </div>
 
