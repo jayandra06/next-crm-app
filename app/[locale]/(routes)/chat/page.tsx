@@ -29,7 +29,7 @@ export default async function ChatPage({
       ? "General"
       : roomKey.startsWith("conf:")
         ? "Conference"
-        : (team.find((m) => roomKey.includes(m.id))?.name ?? "Direct message");
+        : (team.find((m) => roomKey.toLowerCase().includes(m.id.toLowerCase()))?.name ?? "Direct message");
 
   const meetRoom =
     roomKey === GENERAL_CHAT_ROOM
