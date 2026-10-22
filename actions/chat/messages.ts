@@ -2,16 +2,23 @@
 
 import { getSession } from "@/lib/auth-server";
 import { prismadb } from "@/lib/prisma";
-import { dmRoomKey, GENERAL_CHAT_ROOM, parseRoomKey } from "@/lib/chat/room-keys";
+import { dmRoomKey, parseRoomKey } from "@/lib/chat/room-keys";
 import { stripHtmlToPlain } from "@/lib/email/compose-helpers";
+import {
+  type ChatAttachmentItem,
+  type ChatAttachmentDTO,
+  parseAttachments,
+} from "@/lib/chat/attachments";
 
-async function requireUserId() {
+export type { ChatAttachmentItem, ChatAttachmentDTO };
+
+async function requireUserId(): Promise<string> {
   const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
   return (session.user.id as string).trim();
 }
 
-async function assertRoomAccess(roomKey: string, userId: string) {
+async function assertRoomAccess(roomKey: string, userId: string): Promise<void> {
   if (!roomKey) return;
   const cleanRoom = roomKey.trim();
   const cleanUser = userId.trim().toLowerCase();
@@ -50,15 +57,6 @@ async function assertRoomAccess(roomKey: string, userId: string) {
   }
 }
 
-export type ChatAttachmentItem = {
-  url: string;
-  name: string;
-  mime: string;
-  size?: number;
-};
-
-export type ChatAttachmentDTO = ChatAttachmentItem | null;
-
 export type ChatMessageDTO = {
   id: string;
   roomKey: string;
@@ -69,35 +67,6 @@ export type ChatMessageDTO = {
   createdAt: string;
   user: { id: string; name: string; email: string };
 };
-
-export function parseAttachments(
-  url: string | null,
-  name: string | null,
-  mime: string | null
-): ChatAttachmentItem[] {
-  if (!url) return [];
-  const trimmed = url.trim();
-  if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
-    try {
-      const parsed = JSON.parse(trimmed);
-      if (Array.isArray(parsed)) {
-        return parsed.filter(
-          (item): item is ChatAttachmentItem =>
-            Boolean(item && typeof item.url === "string" && item.url.trim().length > 0)
-        );
-      }
-    } catch {
-      // fallback to single attachment below
-    }
-  }
-  return [
-    {
-      url: trimmed,
-      name: name?.trim() || "Attachment",
-      mime: mime?.trim() || "application/octet-stream",
-    },
-  ];
-}
 
 function mapRows(
   rows: {
@@ -244,10 +213,8 @@ export async function sendChatMessage(
   } satisfies ChatMessageDTO;
 }
 
-export async function getDmRoomKey(otherUserId: string) {
+export async function getDmRoomKey(otherUserId: string): Promise<string> {
   const userId = await requireUserId();
   if (otherUserId === userId) throw new Error("Invalid user");
   return dmRoomKey(userId, otherUserId);
 }
-
-export { GENERAL_CHAT_ROOM };

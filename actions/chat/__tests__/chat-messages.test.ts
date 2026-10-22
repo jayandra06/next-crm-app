@@ -20,8 +20,8 @@ import { dmRoomKey, parseRoomKey } from "@/lib/chat/room-keys";
 import {
   getChatMessages,
   sendChatMessage,
-  parseAttachments,
 } from "@/actions/chat/messages";
+import { parseAttachments } from "@/lib/chat/attachments";
 import { markChatRoomRead } from "@/actions/chat/unread";
 
 describe("Chat System Actions and Helpers", () => {
