@@ -1,10 +1,6 @@
-type EmailDetail = {
-  id: string;
-  bodyText?: string | null;
-  bodyHtml?: string | null;
-  imapUid?: number | null;
-  [key: string]: unknown;
-} | null;
+import type { getEmail } from "@/actions/emails/messages";
+
+type EmailDetail = Awaited<ReturnType<typeof getEmail>>;
 
 const cache = new Map<string, Promise<EmailDetail>>();
 

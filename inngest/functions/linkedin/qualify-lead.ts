@@ -52,7 +52,7 @@ export const linkedInQualifyLead = inngest.createFunction(
     if (!qualification) return { skipped: "ai unavailable" };
 
     const statusId = await resolveLeadStatusId(qualification.recommendedStatus);
-    const description = formatLeadAiDescription(qualification, lead.description);
+    const description = formatLeadAiDescription(qualification, lead.description ?? undefined);
 
     await prismadb.crm_Leads.update({
       where: { id: lead_id },

@@ -2,6 +2,7 @@
 
 import { getSession } from "@/lib/auth-server";
 import { isAdmin } from "@/lib/authz";
+import { mapLegacyRole } from "@/lib/authz/roles";
 import { summarizeLinkedInOrgActivity } from "@/lib/linkedin/ai-intelligence";
 import { rememberConversationTurn } from "@/lib/mem0/crm-memory";
 
@@ -10,7 +11,7 @@ import { getLinkedInSnapshot } from "./actions";
 export async function analyzeLinkedInOrganization(organizationId: string) {
   const session = await getSession();
   if (!session?.user?.id) return { ok: false as const, error: "Sign in required." };
-  if (!isAdmin({ id: session.user.id, role: session.user.role ?? "user" })) {
+  if (!isAdmin({ id: session.user.id, role: mapLegacyRole(session.user.role) })) {
     return { ok: false as const, error: "Admin access required." };
   }
 
@@ -38,7 +39,7 @@ export async function analyzeLinkedInOrganization(organizationId: string) {
 export async function saveLinkedInIcpProfile(icpText: string) {
   const session = await getSession();
   if (!session?.user?.id) return { ok: false as const, error: "Sign in required." };
-  if (!isAdmin({ id: session.user.id, role: session.user.role ?? "user" })) {
+  if (!isAdmin({ id: session.user.id, role: mapLegacyRole(session.user.role) })) {
     return { ok: false as const, error: "Admin access required." };
   }
 
