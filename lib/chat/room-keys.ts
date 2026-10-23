@@ -3,16 +3,22 @@
 export const GENERAL_CHAT_ROOM = "general";
 
 export function dmRoomKey(userIdA: string, userIdB: string): string {
-  const [a, b] = [userIdA, userIdB].sort();
-  return `dm:${a}:${b}`;
+  const a = (userIdA ?? "").trim().toLowerCase();
+  const b = (userIdB ?? "").trim().toLowerCase();
+  const [sortedA, sortedB] = [a, b].sort();
+  return `dm:${sortedA}:${sortedB}`;
 }
 
 export function conferenceRoomKey(scheduleId: string): string {
-  return `conf:${scheduleId}`;
+  return `conf:${scheduleId.trim()}`;
 }
 
 export function parseRoomKey(raw?: string | null): string {
-  const v = raw?.trim();
+  if (!raw) return GENERAL_CHAT_ROOM;
+  let v = raw.trim();
+  try {
+    v = decodeURIComponent(v).trim();
+  } catch {}
   if (!v || v === GENERAL_CHAT_ROOM) return GENERAL_CHAT_ROOM;
   if (v.startsWith("dm:") || v.startsWith("conf:")) return v;
   return GENERAL_CHAT_ROOM;

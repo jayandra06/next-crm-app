@@ -98,9 +98,10 @@ export function InvoicePdfLivePreview({ formData, className }: InvoicePdfLivePre
       }
 
       const data = await res.json();
-      if (data.success && Array.isArray(data.pages)) {
-        setPages(data.pages);
-        const resolvedTotal = data.totalPages || data.pages.length || 1;
+      if (data.success) {
+        const receivedPages = Array.isArray(data.pages) ? data.pages : [];
+        setPages(receivedPages);
+        const resolvedTotal = data.totalPages || (receivedPages.length > 0 ? receivedPages.length : 1);
         setTotalPages(resolvedTotal);
         setPdfBase64(data.pdfBase64 || null);
         if (data.filename) {
@@ -210,6 +211,31 @@ export function InvoicePdfLivePreview({ formData, className }: InvoicePdfLivePre
       window.open("/api/invoices/preview-pdf?download=1", "_blank");
     }
   };
+
+  // Create and memoize blob URL for direct vector PDF preview fallback
+  const pdfBlobUrl = React.useMemo(() => {
+    if (!pdfBase64) return null;
+    try {
+      const byteCharacters = atob(pdfBase64);
+      const byteNumbers = new Uint8Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const blob = new Blob([byteNumbers], { type: "application/pdf" });
+      return URL.createObjectURL(blob);
+    } catch (e) {
+      console.error("[InvoicePdfLivePreview] Failed to create blob URL:", e);
+      return null;
+    }
+  }, [pdfBase64]);
+
+  React.useEffect(() => {
+    return () => {
+      if (pdfBlobUrl) {
+        URL.revokeObjectURL(pdfBlobUrl);
+      }
+    };
+  }, [pdfBlobUrl]);
 
   // Standard A4 width = 210mm (~794px at 96 DPI), height = 297mm (~1123px)
   const baseWidthPx = 794;
@@ -416,6 +442,23 @@ export function InvoicePdfLivePreview({ formData, className }: InvoicePdfLivePre
                 alt={`Invoice Page ${currentPage} of ${totalPages}`}
                 className="w-full h-auto block select-none pointer-events-none"
                 draggable={false}
+              />
+            </div>
+          ) : pdfBlobUrl ? (
+            <div
+              style={{
+                width: scaledWidthPx,
+                maxWidth: isFitWidth ? "100%" : "none",
+                aspectRatio: "210 / 297",
+                minHeight: isFullscreen ? "85vh" : "780px",
+                transition: "width 0.2s ease-in-out",
+              }}
+              className="relative bg-white shadow-2xl rounded-sm transition-all duration-200 overflow-hidden border border-zinc-700/40 flex flex-col items-center w-full"
+            >
+              <iframe
+                src={`${pdfBlobUrl}#toolbar=0&navpanes=0`}
+                title="Invoice Live PDF Preview"
+                className="w-full h-full border-0 flex-1 min-h-[780px]"
               />
             </div>
           ) : (

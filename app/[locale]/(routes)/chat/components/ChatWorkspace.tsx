@@ -2,8 +2,11 @@
 
 import * as React from "react";
 import { format, formatDistanceToNow, isToday, isYesterday } from "date-fns";
-import { Hash, Paperclip, SendHorizontal, Video, X } from "lucide-react";
-import { sendChatMessage, type ChatAttachmentDTO } from "@/actions/chat/messages";
+import { Hash, Paperclip, SendHorizontal, Video, Loader2 } from "lucide-react";
+import {
+  sendChatMessage,
+  type ChatAttachmentItem,
+} from "@/actions/chat/messages";
 import {
   chatMessagesKey,
   useAppendChatMessage,
@@ -17,6 +20,8 @@ import { markChatRoomRead } from "@/actions/chat/unread";
 import { avatarGradientClass, initials } from "@/lib/chat/avatar-style";
 import { uploadChatFile } from "@/lib/chat/upload-file";
 import { cn } from "@/lib/utils";
+import { ChatFileAttachment } from "./ChatFileAttachment";
+import { ChatFilePreviewModal } from "./ChatFilePreviewModal";
 
 type Props = {
   roomKey: string;
@@ -71,18 +76,30 @@ export function ChatWorkspace({
   const appendMessage = useAppendChatMessage(roomKey);
   const [draft, setDraft] = React.useState("");
   const [sending, setSending] = React.useState(false);
-  const [pendingFile, setPendingFile] = React.useState<ChatAttachmentDTO>(null);
+  const [pendingFiles, setPendingFiles] = React.useState<ChatAttachmentItem[]>([]);
   const [uploading, setUploading] = React.useState(false);
+  const [uploadProgressText, setUploadProgressText] = React.useState<string | null>(null);
   const [meetHint, setMeetHint] = React.useState(initialCallOpen);
+
+  // File Preview Modal State
+  const [previewFile, setPreviewFile] = React.useState<ChatAttachmentItem | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = React.useState(false);
+
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const composerRef = React.useRef<HTMLTextAreaElement>(null);
   const bottomRef = React.useRef<HTMLDivElement>(null);
 
   const appliedDraftRef = React.useRef<string | null>(null);
 
+  const handleOpenPreview = (file: ChatAttachmentItem) => {
+    setPreviewFile(file);
+    setIsPreviewOpen(true);
+  };
+
   React.useEffect(() => {
     setMeetHint(initialCallOpen);
-    setPendingFile(null);
+    setPendingFiles([]);
+    setUploadProgressText(null);
     if (initialDraft?.trim() && appliedDraftRef.current !== `${roomKey}:${initialDraft}`) {
       appliedDraftRef.current = `${roomKey}:${initialDraft}`;
       setDraft(initialDraft.trim());
@@ -113,31 +130,53 @@ export function ChatWorkspace({
 
   async function handleSend() {
     const text = draft.trim();
-    if (!text && !pendingFile) return;
+    if (!text && pendingFiles.length === 0) return;
     setSending(true);
     try {
-      const msg = await sendChatMessage(roomKey, text ? plainToHtml(text) : "<p></p>", pendingFile);
+      const msg = await sendChatMessage(
+        roomKey,
+        text ? plainToHtml(text) : "<p></p>",
+        pendingFiles
+      );
       appendMessage(msg);
       void qc.invalidateQueries({ queryKey: chatMessagesKey(roomKey) });
       void qc.invalidateQueries({ queryKey: ["live-summary"] });
       setDraft("");
-      setPendingFile(null);
+      setPendingFiles([]);
       void markChatRoomRead(roomKey);
+    } catch (err) {
+      console.error("[handleSend] Failed to send message:", err);
+      alert(err instanceof Error ? err.message : "Failed to send message");
     } finally {
       setSending(false);
       composerRef.current?.focus();
     }
   }
 
-  async function onPickFile(file: File | null) {
-    if (!file) return;
+  async function onPickFiles(filesList: FileList | null) {
+    if (!filesList || filesList.length === 0) return;
+    const files = Array.from(filesList);
     setUploading(true);
     try {
-      setPendingFile(await uploadChatFile(file));
+      const uploadedItems: ChatAttachmentItem[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const f = files[i];
+        setUploadProgressText(`Uploading ${i + 1} of ${files.length}: ${f.name}...`);
+        const result = await uploadChatFile(f);
+        uploadedItems.push({
+          url: result.url,
+          name: result.name,
+          mime: result.mime,
+          size: f.size,
+        });
+      }
+      setPendingFiles((prev) => [...prev, ...uploadedItems]);
     } catch (e) {
+      console.error("[onPickFiles] Upload failed:", e);
       alert(e instanceof Error ? e.message : "Upload failed");
     } finally {
       setUploading(false);
+      setUploadProgressText(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
@@ -149,7 +188,7 @@ export function ChatWorkspace({
       : "Direct message";
 
   let lastDay: string | null = null;
-  const canSend = !sending && !uploading && (draft.trim().length > 0 || Boolean(pendingFile));
+  const canSend = !sending && !uploading && (draft.trim().length > 0 || pendingFiles.length > 0);
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
@@ -174,7 +213,12 @@ export function ChatWorkspace({
             <p className="truncate text-xs text-muted-foreground">{subtitle}</p>
           </div>
         </div>
-        <Button type="button" variant="outline" className="h-9 shrink-0 gap-2 rounded-full px-3.5" onClick={joinMeeting}>
+        <Button
+          type="button"
+          variant="outline"
+          className="h-9 shrink-0 gap-2 rounded-full px-3.5"
+          onClick={joinMeeting}
+        >
           <Video className="h-4 w-4" />
           Meet
         </Button>
@@ -183,7 +227,11 @@ export function ChatWorkspace({
       {meetHint && (
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border/60 bg-muted/40 px-4 py-2 text-sm sm:px-5">
           <p className="text-muted-foreground">Meeting opens in its own window, so this chat stays put.</p>
-          <button type="button" className="shrink-0 text-xs font-medium text-foreground underline-offset-2 hover:underline" onClick={() => setMeetHint(false)}>
+          <button
+            type="button"
+            className="shrink-0 text-xs font-medium text-foreground underline-offset-2 hover:underline"
+            onClick={() => setMeetHint(false)}
+          >
             Dismiss
           </button>
         </div>
@@ -206,6 +254,12 @@ export function ChatWorkspace({
               const day = dayLabel(m.createdAt);
               const showDay = day !== lastDay;
               if (showDay) lastDay = day;
+
+              const atts = m.attachments?.length
+                ? m.attachments
+                : m.attachment
+                  ? [m.attachment]
+                  : [];
 
               return (
                 <React.Fragment key={m.id}>
@@ -251,30 +305,18 @@ export function ChatWorkspace({
                         ) : m.body ? (
                           <p className="whitespace-pre-wrap text-left">{m.body}</p>
                         ) : null}
-                        {m.attachment && (
-                          <div className="mt-2 text-left">
-                            {m.attachment.mime.startsWith("image/") ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={m.attachment.url}
-                                alt={m.attachment.name}
-                                className="max-h-56 rounded-lg"
+
+                        {/* Attachments Section */}
+                        {atts.length > 0 && (
+                          <div className="mt-2.5 flex flex-col gap-2 text-left">
+                            {atts.map((att, idx) => (
+                              <ChatFileAttachment
+                                key={`${att.url}-${idx}`}
+                                file={att}
+                                mine={mine}
+                                onPreview={handleOpenPreview}
                               />
-                            ) : m.attachment.mime.startsWith("video/") ? (
-                              <video src={m.attachment.url} controls className="max-h-56 max-w-full rounded-lg" />
-                            ) : (
-                              <a
-                                href={m.attachment.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className={cn(
-                                  "text-sm underline underline-offset-2",
-                                  mine ? "text-primary-foreground" : "text-primary"
-                                )}
-                              >
-                                {m.attachment.name}
-                              </a>
-                            )}
+                            ))}
                           </div>
                         )}
                       </div>
@@ -290,21 +332,36 @@ export function ChatWorkspace({
 
       <div className="shrink-0 border-t border-border/60 bg-background px-4 py-3 sm:px-5">
         <div className="mx-auto w-full max-w-3xl">
-          {pendingFile && (
-            <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="truncate">{pendingFile.name}</span>
-              <button type="button" className="rounded-full p-0.5 hover:bg-muted" onClick={() => setPendingFile(null)} aria-label="Remove attachment">
-                <X className="h-3.5 w-3.5" />
-              </button>
+          {/* Multiple Pending Files List */}
+          {pendingFiles.length > 0 && (
+            <div className="mb-2.5 flex flex-wrap gap-2 max-h-36 overflow-y-auto p-1.5 rounded-xl border border-border/70 bg-muted/40">
+              {pendingFiles.map((f, idx) => (
+                <ChatFileAttachment
+                  key={`${f.url}-${idx}`}
+                  file={f}
+                  compact
+                  onRemove={() => setPendingFiles((prev) => prev.filter((_, i) => i !== idx))}
+                />
+              ))}
             </div>
           )}
+
+          {/* Upload Progress Indicator */}
+          {uploading && (
+            <div className="mb-2 flex items-center gap-2 text-xs font-medium text-muted-foreground animate-pulse">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+              <span>{uploadProgressText || "Uploading files..."}</span>
+            </div>
+          )}
+
           <div className="flex items-end gap-2 rounded-2xl border border-border bg-muted/30 px-2 py-1.5">
             <input
               ref={fileInputRef}
               type="file"
+              multiple
               className="hidden"
-              accept="image/*,video/*,application/pdf,.doc,.docx,.txt"
-              onChange={(e) => void onPickFile(e.target.files?.[0] ?? null)}
+              accept="image/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.txt,.zip,.rar"
+              onChange={(e) => void onPickFiles(e.target.files)}
             />
             <Button
               type="button"
@@ -313,7 +370,7 @@ export function ChatWorkspace({
               className="mb-0.5 h-9 w-9 shrink-0 rounded-full"
               disabled={uploading}
               onClick={() => fileInputRef.current?.click()}
-              title="Attach a file"
+              title="Attach files (supports multiple documents/PDFs)"
             >
               <Paperclip className="h-4 w-4" />
             </Button>
@@ -345,6 +402,13 @@ export function ChatWorkspace({
           <p className="mt-1.5 px-1 text-[11px] text-muted-foreground">Enter to send · Shift+Enter for a new line</p>
         </div>
       </div>
+
+      {/* In-page Document / PDF / File Preview Modal */}
+      <ChatFilePreviewModal
+        file={previewFile}
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+      />
     </div>
   );
 }

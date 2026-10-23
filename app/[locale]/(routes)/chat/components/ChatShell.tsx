@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { Hash, Search } from "lucide-react";
 import type { TeamMember } from "@/actions/team/get-team-directory";
 import { dmRoomKey, GENERAL_CHAT_ROOM } from "@/lib/chat/room-keys";
