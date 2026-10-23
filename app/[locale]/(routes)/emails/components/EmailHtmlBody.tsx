@@ -59,6 +59,25 @@ const SHADOW_ROOT_BASE_CSS = `
     color: #2563eb;
     text-decoration: underline;
   }
+  blockquote,
+  .gmail_quote,
+  .gmail_extra,
+  .gmail_attr,
+  #divRplyFwdMsg,
+  .moz-cite-prefix {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  blockquote {
+    margin: 12px 0 0;
+    padding-left: 12px;
+    border-left: 3px solid #d4d4d8;
+    color: #3f3f46;
+  }
   /* Neutralize any element attempting fixed or viewport-wide overlays */
   [style*="fixed"] {
     position: relative !important;

@@ -11,7 +11,8 @@ import Container from "../components/ui/Container";
 import EmailsSkeleton from "@/components/skeletons/emails-skeleton";
 import { getSession } from "@/lib/auth-server";
 import { getTranslations } from "next-intl/server";
-import { getAccessibleEmailAccounts } from "@/actions/emails/accessible-accounts";
+import { getAccessibleEmailAccounts, getAdminMailboxById } from "@/actions/emails/accessible-accounts";
+import { mapLegacyRole } from "@/lib/authz/roles";
 import { getMailboxPageData } from "@/actions/emails/mailbox-page";
 import { parseMailboxView } from "@/lib/email/mailbox-views";
 
@@ -87,15 +88,24 @@ const EmailRoute = async ({
     }
   }
 
+  const isAdmin = mapLegacyRole(session.user.role) === "admin";
   let connectedAccounts: any[] = [];
   try {
     connectedAccounts = await getAccessibleEmailAccounts();
+    if (
+      isAdmin &&
+      params.accountId &&
+      !connectedAccounts.some((account) => account.id === params.accountId)
+    ) {
+      const opened = await getAdminMailboxById(params.accountId);
+      if (opened) connectedAccounts = [opened, ...connectedAccounts];
+    }
   } catch (error) {
     console.error("[EmailRoute] Failed to load email accounts:", error);
     connectedAccounts = [];
   }
 
-  if (!connectedAccounts || connectedAccounts.length === 0) {
+  if ((!connectedAccounts || connectedAccounts.length === 0) && !isAdmin) {
     return (
       <Container title={t("emails")} description="Your connected mailboxes">
         <Card className="mx-auto mt-8 max-w-md border-dashed shadow-sm">
@@ -192,6 +202,7 @@ const EmailRoute = async ({
           totalPages={emailsResult.totalPages}
           total={emailsResult.total}
           defaultLayout={validatedLayout}
+          isAdmin={isAdmin}
         />
       </Suspense>
       </div>

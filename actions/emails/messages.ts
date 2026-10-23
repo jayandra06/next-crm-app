@@ -8,6 +8,7 @@ import { assertPublicHost, HostNotAllowedError } from "@/lib/net/host-guard";
 import nodemailer from "nodemailer";
 import { EmailFolder, EmailSendProvider } from "@prisma/client";
 import { sendMailViaResend } from "@/lib/email/resend-mail";
+import { onBehalfFromName } from "@/lib/email/delegation";
 import { resolveMailboxAccess } from "@/lib/email/mailbox-access";
 import { fetchUploadBuffer } from "@/lib/email/fetch-upload-buffer";
 import { inngest } from "@/inngest/client";
@@ -151,7 +152,7 @@ type SendInput = {
 };
 
 export async function sendEmail(input: SendInput) {
-  await requireSession();
+  const sessionUserId = await requireSession();
   const access = await resolveMailboxAccess(input.accountId);
   if (!access.canSend) throw new Error("You cannot send from this mailbox");
 
@@ -159,6 +160,17 @@ export async function sendEmail(input: SendInput) {
     where: { id: input.accountId },
   });
   if (!account) throw new Error("Account not found");
+
+  let fromName = account.fromName;
+  if (access.sendStyle === "on_behalf") {
+    const actor = await prismadb.users.findUnique({
+      where: { id: sessionUserId },
+      select: { name: true, email: true },
+    });
+    const actorName = actor?.name?.trim() || actor?.email || "A teammate";
+    const ownerName = account.fromName?.trim() || account.label;
+    fromName = onBehalfFromName(actorName, ownerName);
+  }
 
   const attachmentBuffers =
     input.attachments && input.attachments.length > 0
@@ -176,7 +188,7 @@ export async function sendEmail(input: SendInput) {
   if (account.sendProvider === EmailSendProvider.RESEND) {
     const sent = await sendMailViaResend({
       fromEmail: account.username,
-      fromName: account.fromName,
+      fromName,
       label: account.label,
       to: input.to,
       cc: input.cc,
@@ -212,7 +224,7 @@ export async function sendEmail(input: SendInput) {
     });
 
     const info = await transporter.sendMail({
-      from: account.username,
+      from: fromName ? `"${fromName.replace(/"/g, "")}" <${account.username}>` : account.username,
       to: input.to.join(", "),
       cc: input.cc?.join(", "),
       bcc: input.bcc?.join(", "),

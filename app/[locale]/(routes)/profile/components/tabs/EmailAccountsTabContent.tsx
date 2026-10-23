@@ -1,5 +1,9 @@
 import Link from "next/link";
 import { getEmailAccounts } from "@/actions/emails/accounts";
+import { listMyMailboxDelegates } from "@/actions/emails/delegates";
+import { getSession } from "@/lib/auth-server";
+import { mapLegacyRole } from "@/lib/authz/roles";
+import { DelegateSettings } from "../DelegateSettings";
 import { EmailAccountsList } from "../EmailAccountsList";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -7,7 +11,12 @@ import { Inbox, Server } from "lucide-react";
 import { EmailSendProvider } from "@prisma/client";
 
 export async function EmailAccountsTabContent() {
-  const accounts = await getEmailAccounts();
+  const [accounts, session, grants] = await Promise.all([
+    getEmailAccounts(),
+    getSession(),
+    listMyMailboxDelegates(),
+  ]);
+  const isAdmin = mapLegacyRole(session?.user?.role) === "admin";
   const hasActiveMailbox = accounts.some((a) => a.isActive);
   const resendMailbox = accounts.find(
     (a) => a.isActive && a.sendProvider === EmailSendProvider.RESEND
@@ -51,6 +60,15 @@ export async function EmailAccountsTabContent() {
             Open inbox
           </Link>
         </Button>
+      )}
+      {isAdmin ? (
+        <DelegateSettings mode="admin" />
+      ) : (
+        <DelegateSettings
+          mode="self"
+          mailboxes={accounts.map((a) => ({ id: a.id, label: a.label, username: a.username }))}
+          initialGrants={grants}
+        />
       )}
       <EmailAccountsList accounts={accounts} />
     </div>

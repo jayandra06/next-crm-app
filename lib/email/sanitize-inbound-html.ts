@@ -1,7 +1,15 @@
 import sanitizeHtml from "sanitize-html";
 
+function revealQuotedContent(css: string): string {
+  return css
+    .replace(/display\s*:\s*none/gi, "display:block")
+    .replace(/visibility\s*:\s*hidden/gi, "visibility:visible")
+    .replace(/max-height\s*:\s*0(?:px|em|rem|%)?/gi, "max-height:none")
+    .replace(/height\s*:\s*0(?:px|em|rem|%)?(?!\d)/gi, "height:auto");
+}
+
 function cleanStyleString(style: string): string {
-  return style
+  return revealQuotedContent(style)
     .replace(/position\s*:\s*fixed/gi, "position: relative")
     .replace(/(-webkit-)?backdrop-filter\s*:[^;]+;?/gi, "")
     .replace(/filter\s*:[^;]*blur\([^)]*\)[^;]*;?/gi, "")
@@ -10,7 +18,7 @@ function cleanStyleString(style: string): string {
 
 function cleanStyleBlocks(html: string): string {
   return html.replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gi, (_, css) => {
-    const cleanedCss = css
+    const cleanedCss = revealQuotedContent(css)
       .replace(/position\s*:\s*fixed/gi, "position: relative")
       .replace(/(-webkit-)?backdrop-filter\s*:[^;}]+;?/gi, "")
       .replace(/filter\s*:[^;}*]*blur\([^)]*\)[^;}*]*;?/gi, "")

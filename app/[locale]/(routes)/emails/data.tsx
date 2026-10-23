@@ -29,6 +29,9 @@ export type ConnectedAccount = {
   label: string;
   username: string;
   accessKind?: "owner" | "delegate" | "admin";
+  canSend?: boolean;
+  sendStyle?: "owner" | "send_as" | "on_behalf";
+  delegatePermission?: "READ_ONLY" | "SEND_ON_BEHALF" | "SEND_AS" | null;
   ownerName?: string | null;
   ownerEmail?: string | null;
 };

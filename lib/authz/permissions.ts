@@ -31,6 +31,7 @@ export const FEATURES = [
   { key: "chat", label: "Team chat", group: "Work", routes: ["/chat"] },
   { key: "schedule", label: "Schedule", group: "Work", routes: ["/schedule"] },
   { key: "documents", label: "Documents", group: "Work", routes: ["/documents"] },
+  { key: "doc_maker", label: "Doc maker", group: "Work", routes: ["/doc-maker"] },
   { key: "reports", label: "Reports", group: "Insights", routes: ["/reports"] },
   { key: "invoices", label: "Invoices", group: "Finance", routes: ["/invoices"] },
   { key: "hrm", label: "Hiring", group: "People", routes: ["/hrm"] },

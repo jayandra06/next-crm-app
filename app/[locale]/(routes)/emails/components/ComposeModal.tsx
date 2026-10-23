@@ -138,9 +138,11 @@ export const ComposeModal = forwardRef<HTMLDivElement, Props>(function ComposeMo
   const fileInputRef = useRef<HTMLInputElement>(null);
   const quotePlainRef = useRef("");
 
+  const sendableAccounts = (accounts ?? []).filter((a) => a.canSend !== false);
   const sendFromAccount =
-    accounts.find((a) => a.id === sendFromAccountId) ??
-    accounts.find((a) => a.id === accountId);
+    sendableAccounts.find((a) => a.id === sendFromAccountId) ??
+    sendableAccounts.find((a) => a.id === accountId) ??
+    (accounts ?? []).find((a) => a.id === accountId);
   const effectiveMailboxAddress = sendFromAccount?.username ?? mailboxAddress;
 
   useEffect(() => {
@@ -261,7 +263,7 @@ export const ComposeModal = forwardRef<HTMLDivElement, Props>(function ComposeMo
             {needsSource && !sourceReady && (
               <p className="text-sm text-muted-foreground">Loading message… open again in a moment.</p>
             )}
-            {accounts.length > 1 && (
+            {sendableAccounts.length > 1 && (
               <div className="space-y-1">
                 <Label>Send as</Label>
                 <Select value={sendFromAccountId} onValueChange={setSendFromAccountId}>
@@ -269,21 +271,29 @@ export const ComposeModal = forwardRef<HTMLDivElement, Props>(function ComposeMo
                     <SelectValue placeholder="Choose mailbox" />
                   </SelectTrigger>
                   <SelectContent>
-                    {accounts.map((a) => (
+                    {sendableAccounts.map((a) => (
                       <SelectItem key={a.id} value={a.id}>
                         {a.label} ({a.username})
-                        {a.accessKind && a.accessKind !== "owner"
-                          ? ` — ${a.accessKind === "delegate" ? "delegated" : "team"}`
-                          : ""}
+                        {a.sendStyle === "on_behalf"
+                          ? " — on behalf"
+                          : a.accessKind && a.accessKind !== "owner"
+                            ? " — send as"
+                            : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
             )}
-            {sendFromAccount?.accessKind && sendFromAccount.accessKind !== "owner" && (
+            {sendFromAccount?.sendStyle === "on_behalf" && (
               <p className="text-xs text-muted-foreground">
-                Sending on behalf of {sendFromAccount.ownerName ?? sendFromAccount.ownerEmail ?? "mailbox owner"}.
+                Recipients see your name on behalf of{" "}
+                {sendFromAccount.ownerName ?? sendFromAccount.ownerEmail ?? "the mailbox owner"}.
+              </p>
+            )}
+            {sendFromAccount?.sendStyle === "send_as" && sendFromAccount.accessKind !== "owner" && (
+              <p className="text-xs text-muted-foreground">
+                Sending as {sendFromAccount.ownerName ?? sendFromAccount.ownerEmail ?? "the mailbox owner"}.
               </p>
             )}
             <div className="space-y-1">

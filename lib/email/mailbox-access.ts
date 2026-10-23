@@ -1,7 +1,8 @@
 import { cache } from "react";
 import { getSession } from "@/lib/auth-server";
-import { requireRole, AuthorizationError } from "@/lib/authz";
+import { mapLegacyRole } from "@/lib/authz/roles";
 import { prismadb } from "@/lib/prisma";
+import { accessFromDelegatePermission, type DelegatePermission } from "@/lib/email/delegation";
 
 export type MailboxAccessKind = "owner" | "delegate" | "admin";
 
@@ -10,11 +11,18 @@ export type MailboxAccess = {
   mailboxUserId: string;
   accessKind: MailboxAccessKind;
   canSend: boolean;
+  /** owner sends as the mailbox. on_behalf prefixes the From name. */
+  sendStyle: "owner" | "send_as" | "on_behalf";
+  delegatePermission: DelegatePermission | null;
   username: string;
   fromName: string | null;
   label: string;
   sendProvider: import("@prisma/client").EmailSendProvider;
 };
+
+function viewerIsAdmin(sessionRole: unknown): boolean {
+  return mapLegacyRole(sessionRole) === "admin";
+}
 
 async function resolveMailboxAccessUncached(accountId: string): Promise<MailboxAccess> {
   const session = await getSession();
@@ -30,54 +38,59 @@ async function resolveMailboxAccessUncached(accountId: string): Promise<MailboxA
       fromName: true,
       label: true,
       sendProvider: true,
-      delegateUserIds: true,
       isActive: true,
+      delegates: {
+        where: { userId: sessionUserId },
+        select: { permission: true },
+        take: 1,
+      },
     },
   });
   if (!account || !account.isActive) throw new Error("Account not found");
 
+  const base = {
+    accountId: account.id,
+    mailboxUserId: account.userId,
+    username: account.username,
+    fromName: account.fromName,
+    label: account.label,
+    sendProvider: account.sendProvider,
+  };
+
   if (account.userId === sessionUserId) {
     return {
-      accountId: account.id,
-      mailboxUserId: account.userId,
+      ...base,
       accessKind: "owner",
       canSend: true,
-      username: account.username,
-      fromName: account.fromName,
-      label: account.label,
-      sendProvider: account.sendProvider,
+      sendStyle: "owner",
+      delegatePermission: null,
     };
   }
 
-  if (account.delegateUserIds.includes(sessionUserId)) {
+  // Admins can open and send from every mailbox without a grant.
+  if (viewerIsAdmin(session.user.role)) {
     return {
-      accountId: account.id,
-      mailboxUserId: account.userId,
-      accessKind: "delegate",
-      canSend: true,
-      username: account.username,
-      fromName: account.fromName,
-      label: account.label,
-      sendProvider: account.sendProvider,
-    };
-  }
-
-  try {
-    await requireRole(["admin", "manager"]);
-    return {
-      accountId: account.id,
-      mailboxUserId: account.userId,
+      ...base,
       accessKind: "admin",
       canSend: true,
-      username: account.username,
-      fromName: account.fromName,
-      label: account.label,
-      sendProvider: account.sendProvider,
+      sendStyle: "send_as",
+      delegatePermission: null,
     };
-  } catch (e) {
-    if (e instanceof AuthorizationError) throw new Error("Account not found");
-    throw e;
   }
+
+  const grant = account.delegates[0]?.permission;
+  if (grant) {
+    const granted = accessFromDelegatePermission(grant);
+    return {
+      ...base,
+      accessKind: "delegate",
+      canSend: granted.canSend,
+      sendStyle: granted.sendStyle,
+      delegatePermission: grant,
+    };
+  }
+
+  throw new Error("Account not found");
 }
 
 /** Per-request dedupe (parallel getMailboxEmails + getMailboxCounts on the same page load). */

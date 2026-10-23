@@ -5,11 +5,9 @@ import { HrmCandidateStatus, HrmEmploymentType } from "@prisma/client";
 import { requireFeature } from "@/lib/authz";
 import { prismadb } from "@/lib/prisma";
 import { persistAttachmentBuffer } from "@/lib/email/persist-attachment";
-import { sendMailViaResend } from "@/lib/email/resend-mail";
-import { getAppName } from "@/lib/app-name";
 import { extractResumeProfile } from "@/lib/hrm/extract-resume";
 import { isEmploymentType, type EmploymentType } from "@/lib/hrm/employment";
-import { fillOfferOnLetterhead } from "@/lib/canva/offer-letter";
+import { sendOfferLetter } from "@/actions/hrm/offer-letter";
 
 const MAX_RESUME_BYTES = 8 * 1024 * 1024;
 
@@ -169,56 +167,5 @@ export async function uploadCandidateResume(id: string, formData: FormData) {
 }
 
 export async function hireAndSendOffer(id: string) {
-  const user = await actor();
-  const candidate = await prismadb.hrmCandidate.findUnique({ where: { id } });
-  if (!candidate) return { error: "Candidate not found" };
-
-  const templateId = await getOfferTemplateId();
-  if (!templateId) {
-    return { error: "Set the Canva brand template id for the offer letterhead first" };
-  }
-
-  const fromAddress = process.env.EMAIL_FROM || process.env.RESEND_FROM_EMAIL || "";
-  if (!fromAddress) return { error: "Set EMAIL_FROM or RESEND_FROM_EMAIL so the offer can be emailed" };
-
-  const letter = await fillOfferOnLetterhead(user.id, templateId, {
-    candidateName: candidate.fullName,
-    email: candidate.email,
-    jobTitle: candidate.jobTitle || "Team member",
-    employmentType: candidate.employmentType,
-    startDate: candidate.startDate ? candidate.startDate.toISOString().slice(0, 10) : "",
-    compensation: candidate.compensation || "",
-    phone: candidate.phone || "",
-    location: candidate.location || "",
-  });
-
-  const stored = await persistAttachmentBuffer(
-    `offer-${candidate.fullName}.pdf`,
-    "application/pdf",
-    letter.pdf
-  );
-  const appName = getAppName();
-  await sendMailViaResend({
-    fromEmail: fromAddress,
-    fromName: appName,
-    to: [candidate.email],
-    subject: `Your offer from ${appName}${candidate.jobTitle ? ` — ${candidate.jobTitle}` : ""}`,
-    text: `Hello ${candidate.fullName},\n\nPlease find your offer letter attached.\n`,
-    html: `<p>Hello ${candidate.fullName},</p><p>Please find your offer letter attached. It uses the company letterhead.</p>`,
-    attachments: [{ filename: "offer-letter.pdf", content: letter.pdf, contentType: "application/pdf" }],
-  });
-
-  await prismadb.hrmCandidate.update({
-    where: { id },
-    data: {
-      status: HrmCandidateStatus.hired,
-      offerDesignId: letter.designId,
-      offerEditUrl: letter.editUrl,
-      offerPdfUrl: stored.url,
-      offerSentAt: new Date(),
-    },
-  });
-  revalidatePath(`/hrm/${id}`);
-  revalidatePath("/hrm");
-  return { ok: true as const };
+  return sendOfferLetter(id);
 }

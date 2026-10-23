@@ -6,6 +6,7 @@ import {
 } from "@/actions/admin/email-accounts";
 import { EmailMailboxStats } from "./EmailMailboxStats";
 import { EmailEnvConfigPanel } from "./EmailEnvConfigPanel";
+import { DelegateSettings } from "../../profile/components/DelegateSettings";
 
 export default async function AdminEmailAccountsPage() {
   const [accounts, users] = await Promise.all([
@@ -21,6 +22,7 @@ export default async function AdminEmailAccountsPage() {
       <div className="mx-auto max-w-4xl space-y-8 pb-8">
         <EmailMailboxStats accounts={accounts} />
         <EmailEnvConfigPanel />
+        <DelegateSettings mode="admin" />
         <EmailAccountsList accounts={accounts} admin assignableUsers={users} />
       </div>
     </Container>
