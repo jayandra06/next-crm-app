@@ -1036,6 +1036,9 @@ model Users {
   created_target_lists crm_TargetLists[]     @relation("created_target_lists")
   apiTokens            ApiToken[]
   emailAccounts        EmailAccount[]
+  mailboxDelegations   EmailAccountDelegate[]
+  docLetterheads       DocLetterhead[]
+  docLetters           DocLetter[]
   calendarConnections  CalendarConnection[]
   linkedInConnection   LinkedInConnection?
   canvaConnection      CanvaConnection?
@@ -1573,6 +1576,12 @@ enum EmailSendProvider {
   RESEND
 }
 
+enum EmailDelegatePermission {
+  READ_ONLY
+  SEND_ON_BEHALF
+  SEND_AS
+}
+
 model EmailAccount {
   id                String    @id @default(uuid()) @db.Uuid
   userId            String    @db.Uuid
@@ -1588,8 +1597,6 @@ model EmailAccount {
   allowSelfSignedTls Boolean  @default(false)
   username          String
   passwordEncrypted String?
-  /// CRM users who may open this mailbox and send on the owner’s behalf
-  delegateUserIds   String[]  @default([]) @db.Uuid
   isActive          Boolean   @default(true)
   sentFolderName    String    @default("Sent")
   lastSyncedAt      DateTime?
@@ -1598,11 +1605,28 @@ model EmailAccount {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  user   Users   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  emails Email[]
+  user      Users                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emails    Email[]
+  delegates EmailAccountDelegate[]
 
   @@index([userId])
   @@index([isActive])
+}
+
+/// Access another person granted on a mailbox. Admins can open every mailbox without a row here.
+model EmailAccountDelegate {
+  id             String                  @id @default(uuid()) @db.Uuid
+  emailAccountId String                  @db.Uuid
+  userId         String                  @db.Uuid
+  permission     EmailDelegatePermission
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  account EmailAccount @relation(fields: [emailAccountId], references: [id], onDelete: Cascade)
+  user    Users        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([emailAccountId, userId])
+  @@index([userId])
 }
 
 enum EmailFolder {
@@ -1772,6 +1796,11 @@ model HrmCandidate {
   offerEditUrl     String?
   offerPdfUrl      String?
   offerSentAt      DateTime?
+  /// TipTap document for the offer body written between the letterhead header and footer.
+  offerDoc         Json?
+  offerHtml        String?             @db.Text
+  /// Page margins in PDF points: { top, right, bottom, left }
+  offerMargins     Json?
   createdBy        String?             @db.Uuid
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
@@ -2538,4 +2567,44 @@ model crm_OrderLines {
 
   @@index([orderId])
   @@index([productId])
+}
+
+/// Company letterhead learned from an uploaded PDF. Header and footer images keep the logo, colour, and contact block.
+model DocLetterhead {
+  id            String   @id @default(uuid()) @db.Uuid
+  name          String
+  accentColor   String   @default("#1e3a5f")
+  contactLines  Json     @default("[]")
+  pageWidth     Float
+  pageHeight    Float
+  headerHeight  Float
+  footerHeight  Float
+  sideMargin    Float
+  headerPng     Bytes
+  footerPng     Bytes
+  createdById   String   @db.Uuid
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  createdBy Users       @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  letters   DocLetter[]
+
+  @@index([createdById])
+}
+
+model DocLetter {
+  id           String   @id @default(uuid()) @db.Uuid
+  title        String
+  body         String   @db.Text
+  letterheadId String   @db.Uuid
+  createdById  String   @db.Uuid
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  letterhead DocLetterhead @relation(fields: [letterheadId], references: [id], onDelete: Cascade)
+  createdBy  Users         @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([createdById])
+  @@index([letterheadId])
+  @@index([updatedAt])
 }

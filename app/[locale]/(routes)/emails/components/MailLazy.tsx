@@ -21,6 +21,7 @@ type Props = {
   totalPages: number;
   total: number;
   defaultLayout: number[] | undefined;
+  isAdmin?: boolean;
 };
 
 export function MailLazy(props: Props) {

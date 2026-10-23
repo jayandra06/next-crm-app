@@ -43,6 +43,15 @@ describe("sanitizeInboundEmailHtml", () => {
     expect(output).toContain('href="https://example.com"');
   });
 
+  it("shows quoted replies and forwards that arrived hidden", () => {
+    const input = `<div>Thanks</div><blockquote class="gmail_quote" style="display:none; max-height:0;">On Mon, Alex wrote: the earlier message</blockquote>`;
+    const output = sanitizeInboundEmailHtml(input);
+    expect(output).toContain("the earlier message");
+    expect(output).not.toContain("display:none");
+    expect(output).not.toContain("display: none");
+    expect(output).toContain("display:block");
+  });
+
   it("preserves standard email layout, headings, and tables", () => {
     const input = `
       <h1>Invoice #1234</h1>

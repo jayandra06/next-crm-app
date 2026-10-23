@@ -6,8 +6,11 @@ const withNextIntl = require("next-intl/plugin")(
 const nextConfig = {
   output: "standalone",
   poweredByHeader: false,
-  serverExternalPackages: ["pdf-parse", "pdfjs-dist"],
+  serverExternalPackages: ["pdf-parse", "pdfjs-dist", "@napi-rs/canvas"],
   experimental: {
+    serverActions: {
+      bodySizeLimit: "12mb",
+    },
     // Reuse prefetched App Router payloads so sidebar clicks feel instant.
     // dynamic: 0 (the Next default) refetches every navigation.
     staleTimes: {

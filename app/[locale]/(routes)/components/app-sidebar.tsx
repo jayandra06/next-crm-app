@@ -22,6 +22,7 @@ import getChatMenuItem from "./menu-items/Chat";
 import getScheduleMenuItem from "./menu-items/Schedule";
 import getReportsMenuItem from "./menu-items/Reports";
 import getDocumentsMenuItem from "./menu-items/Documents";
+import getDocMakerMenuItem from "./menu-items/DocMaker";
 import getInvoicesMenuItem from "./menu-items/Invoices";
 import getHrmMenuItem from "./menu-items/Hrm";
 import getAdministrationMenuItem from "./menu-items/Administration";
@@ -136,6 +137,7 @@ export function AppSidebar({
     getScheduleMenuItem({ title: "Schedule" }),
     getReportsMenuItem({ title: dict?.reports || "Reports" }),
     getDocumentsMenuItem({ title: dict?.documents || "Documents" }),
+    getDocMakerMenuItem({ title: "Doc maker" }),
     getInvoicesMenuItem({ title: dict?.invoices || "Invoices" }),
     getHrmMenuItem({ title: "Hiring" }),
   ];

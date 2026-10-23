@@ -1,33 +1,30 @@
 import Link from "next/link";
-import { listCandidates, getOfferTemplateId } from "@/actions/hrm/candidates";
+import { listCandidates } from "@/actions/hrm/candidates";
 import { EMPLOYMENT_LABELS, STATUS_LABELS, type CandidateStatus, type EmploymentType } from "@/lib/hrm/employment";
 import { NewCandidateForm } from "./NewCandidateForm";
-import { OfferTemplateForm } from "./OfferTemplateForm";
 
 export default async function HrmPage() {
-  const [candidates, templateId] = await Promise.all([listCandidates(), getOfferTemplateId()]);
+  const candidates = await listCandidates();
 
   return (
     <main className="mx-auto max-w-5xl space-y-8 px-4 py-8">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Hiring</h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          Add a candidate, upload their PDF resume, and review the details pulled from it. When you hire them, the
-          offer letter is filled on your Canva letterhead and emailed as a PDF.
+          Add a candidate, upload their PDF resume, and review the details pulled from it. Draft the offer on the
+          company letterhead, then email it as a PDF.
         </p>
       </div>
 
-      <section className="space-y-3 rounded-xl border p-4">
-        <h2 className="text-sm font-semibold">Offer letterhead</h2>
+      <section className="space-y-2 rounded-xl border p-4">
+        <h2 className="text-sm font-semibold">Letterhead</h2>
         <p className="text-sm text-muted-foreground">
-          In Canva, publish the letterhead as a Brand template with text fields named{" "}
-          <code className="text-xs">candidate_name</code>, <code className="text-xs">job_title</code>,{" "}
-          <code className="text-xs">employment_type</code>, <code className="text-xs">start_date</code>,{" "}
-          <code className="text-xs">compensation</code>, <code className="text-xs">email</code>,{" "}
-          <code className="text-xs">phone</code>, and <code className="text-xs">location</code>. Paste that template
-          id here. Reconnect Canva after this so the brand-template permission is included.
+          Upload the offer-letter PDF in Doc maker. Hiring uses that header and footer, and the letter is written in
+          the space between them.
         </p>
-        <OfferTemplateForm initialId={templateId} />
+        <Link href="/doc-maker" className="text-sm font-medium underline">
+          Open Doc maker
+        </Link>
       </section>
 
       <section className="space-y-3 rounded-xl border p-4">

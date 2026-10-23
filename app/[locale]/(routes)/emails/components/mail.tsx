@@ -4,6 +4,7 @@ import { Archive, Inbox, PenLine, Send, ShieldAlert, Star, Trash2 } from "lucide
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { AccountSwitcher } from "@/app/[locale]/(routes)/emails/components/account-switcher";
+import { AdminMailboxSearch } from "@/app/[locale]/(routes)/emails/components/AdminMailboxSearch";
 import { ComposeModal } from "@/app/[locale]/(routes)/emails/components/ComposeModal";
 import { MailDisplay } from "@/app/[locale]/(routes)/emails/components/mail-display";
 import { MailList } from "@/app/[locale]/(routes)/emails/components/mail-list";
@@ -37,6 +38,7 @@ interface MailProps {
   totalPages: number;
   total: number;
   defaultLayout: number[] | undefined;
+  isAdmin?: boolean;
 }
 
 export function MailComponent({
@@ -49,6 +51,7 @@ export function MailComponent({
   totalPages,
   total,
   defaultLayout = [38, 62],
+  isAdmin = false,
 }: MailProps) {
   const LIST_PANEL_ID = "mail-list";
   const READ_PANEL_ID = "mail-read";
@@ -77,8 +80,9 @@ export function MailComponent({
     }),
     [defaultLayout]
   );
-  const activeMailboxAddress =
-    accounts.find((a) => a.id === activeAccountId)?.username ?? "";
+  const activeAccount = accounts.find((a) => a.id === activeAccountId);
+  const activeMailboxAddress = activeAccount?.username ?? "";
+  const canCompose = Boolean(activeAccount && activeAccount.canSend !== false);
 
   const listFilter = searchParams.get("filter") === "unread" ? "unread" : "all";
   const [localMails, setLocalMails] = React.useState(mails);
@@ -319,6 +323,11 @@ export function MailComponent({
   return (
     <TooltipProvider delayDuration={0}>
       <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+      {isAdmin && (
+        <div className="border-b border-border/60 p-2 sm:hidden">
+          <AdminMailboxSearch />
+        </div>
+      )}
       <div className="flex h-full min-h-0 w-full max-w-full min-w-0 flex-1 overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm">
         <aside className="flex w-[4.5rem] shrink-0 flex-col overflow-y-auto overscroll-contain border-r border-border/40 bg-muted/30 sm:w-44">
           <div className="space-y-1 p-2">
@@ -326,12 +335,17 @@ export function MailComponent({
               View as
             </p>
             <AccountSwitcher accounts={accounts} activeAccountId={activeAccountId} />
+            {isAdmin && (
+              <div className="hidden sm:block">
+                <AdminMailboxSearch />
+              </div>
+            )}
           </div>
           <Separator className="opacity-50" />
-          {activeAccountId && (
+          {canCompose && (
             <div className="p-2">
               <ComposeModal
-                accountId={activeAccountId}
+                accountId={activeAccount?.id ?? ""}
                 accounts={accounts}
                 mailboxAddress={activeMailboxAddress}
                 trigger={

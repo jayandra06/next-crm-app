@@ -64,7 +64,15 @@ export function AccountSwitcher({ accounts, activeAccountId }: AccountSwitcherPr
             <span className="ml-1 text-muted-foreground">({account.username})</span>
             {account.accessKind && account.accessKind !== "owner" && (
               <span className="ml-1 text-[10px] uppercase text-amber-600 dark:text-amber-400">
-                {account.accessKind === "delegate" ? "delegated" : "team"}
+                {account.delegatePermission === "READ_ONLY"
+                  ? "read only"
+                  : account.delegatePermission === "SEND_ON_BEHALF"
+                    ? "on behalf"
+                    : account.delegatePermission === "SEND_AS"
+                      ? "send as"
+                      : account.accessKind === "admin"
+                        ? "admin"
+                        : "delegated"}
               </span>
             )}
           </SelectItem>

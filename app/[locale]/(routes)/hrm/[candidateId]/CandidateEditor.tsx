@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { hireAndSendOffer, setCandidateStatus, updateCandidate, uploadCandidateResume } from "@/actions/hrm/candidates";
+import { setCandidateStatus, updateCandidate, uploadCandidateResume } from "@/actions/hrm/candidates";
 import {
   CANDIDATE_STATUSES,
   EMPLOYMENT_LABELS,
@@ -209,24 +210,8 @@ export function CandidateEditor({ candidate }: { candidate: Candidate }) {
               {STATUS_LABELS[status]}
             </Button>
           ))}
-          <Button
-            type="button"
-            disabled={busy !== null}
-            onClick={async () => {
-              setBusy("hire");
-              setError(null);
-              try {
-                const result = await hireAndSendOffer(candidate.id);
-                if ("error" in result && result.error) setError(result.error);
-                else router.refresh();
-              } catch (e) {
-                setError(e instanceof Error ? e.message : "Could not send the offer");
-              } finally {
-                setBusy(null);
-              }
-            }}
-          >
-            {busy === "hire" ? "Sending offer…" : "Hire and send offer letter"}
+          <Button asChild>
+            <Link href={`/hrm/${candidate.id}/offer`}>Draft offer letter</Link>
           </Button>
         </div>
         {candidate.offerSentAt && (
@@ -235,13 +220,9 @@ export function CandidateEditor({ candidate }: { candidate: Candidate }) {
             {candidate.offerPdfUrl ? (
               <>
                 {" "}
-                <a className="underline" href={candidate.offerPdfUrl}>PDF</a>
-              </>
-            ) : null}
-            {candidate.offerEditUrl ? (
-              <>
-                {" "}
-                · <a className="underline" href={candidate.offerEditUrl} target="_blank" rel="noreferrer">Edit in Canva</a>
+                <a className="underline" href={candidate.offerPdfUrl}>
+                  PDF
+                </a>
               </>
             ) : null}
           </p>
