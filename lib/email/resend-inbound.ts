@@ -217,7 +217,7 @@ async function storeInboundForMailbox(
 /** Ingest one Resend inbound message into every matching employee inbox. */
 export async function ingestResendInboundEmail(
   resendEmailId: string,
-  webhookMeta?: { to?: string[]; received_for?: string[] }
+  webhookMeta?: { to?: string[]; cc?: string[]; bcc?: string[]; received_for?: string[] }
 ) {
   const payload = await fetchResendReceivedEmail(resendEmailId);
   const recipients = collectInboundRecipientAddresses(payload, webhookMeta);

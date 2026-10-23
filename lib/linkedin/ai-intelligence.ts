@@ -51,7 +51,7 @@ export async function qualifyLinkedInLead(input: {
   actorUserId?: string;
 }): Promise<LinkedInLeadQualification | null> {
   const memories = await recallMemoriesForPrompt({
-    userId: actorUserId || icpMem0UserId(),
+    userId: input.actorUserId || icpMem0UserId(),
     query: `${input.lead.company ?? ""} ${input.lead.jobTitle ?? ""} ideal customer profile lead score`,
     surface: "linkedin-icp",
     limit: 8,

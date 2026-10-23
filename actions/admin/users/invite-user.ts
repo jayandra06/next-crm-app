@@ -158,7 +158,7 @@ export const createEmployee = async (data: CreateEmployeeInput) => {
     }
 
     await setUserVentureAccess({ userId: user.id, ventureSlugs, crmEnabled });
-    revalidateTag("team-directory");
+    revalidateTag("team-directory", "max");
     revalidatePath("/[locale]/(routes)/admin", "page");
     revalidatePath("/[locale]/(routes)/ventures", "page");
     return { data: user };

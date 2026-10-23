@@ -58,7 +58,7 @@ export function CandidateEditor({ candidate }: { candidate: Candidate }) {
           setError(null);
           try {
             const result = await uploadCandidateResume(candidate.id, data);
-            if ("error" in result) setError(result.error);
+            if ("error" in result && result.error) setError(result.error);
             else router.refresh();
           } catch (e) {
             setError(e instanceof Error ? e.message : "Could not read the resume");
@@ -110,7 +110,7 @@ export function CandidateEditor({ candidate }: { candidate: Candidate }) {
               compensation: String(data.get("compensation") ?? ""),
               startDate: String(data.get("startDate") ?? ""),
             });
-            if (result && "error" in result) setError(result.error);
+            if (result && "error" in result && result.error) setError(result.error);
             else router.refresh();
           } finally {
             setBusy(null);
