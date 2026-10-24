@@ -50,7 +50,7 @@ type Props = {
   trigger?: React.ReactNode;
   defaultOpen?: boolean;
   initialTo?: string;
-  onSent?: () => void;
+  onSent?: (sentMail?: any) => void;
   onClose?: () => void;
   /** When true, dialog is opened programmatically (no trigger button). */
   headless?: boolean;
@@ -203,7 +203,7 @@ export const ComposeModal = forwardRef<HTMLDivElement, Props>(function ComposeMo
     setSending(true);
     setError(null);
     try {
-      await sendEmail({
+      const sentMail = await sendEmail({
         accountId: sendFromAccountId,
         to: to.split(",").map((e) => e.trim()).filter(Boolean),
         cc: cc.split(",").map((e) => e.trim()).filter(Boolean),
@@ -215,7 +215,7 @@ export const ComposeModal = forwardRef<HTMLDivElement, Props>(function ComposeMo
         references: mode === "reply" || mode === "reply-all" ? replyTo?.rfcMessageId : undefined,
       });
       setOpen(false);
-      onSent?.();
+      onSent?.(sentMail);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Send failed");

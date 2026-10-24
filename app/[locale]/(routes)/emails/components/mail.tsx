@@ -103,6 +103,21 @@ export function MailComponent({
     [mail, setMail]
   );
 
+  const handleSentMail = React.useCallback(
+    (sentMail?: any) => {
+      if (
+        mailboxView === "sent" &&
+        sentMail &&
+        (!sentMail.emailAccountId || sentMail.emailAccountId === activeAccountId)
+      ) {
+        setLocalMails((prev) => [sentMail, ...prev.filter((m) => m.id !== sentMail.id)]);
+        setMail((prev) => ({ ...prev, selected: sentMail.id }));
+      }
+      router.refresh();
+    },
+    [mailboxView, activeAccountId, setMail, router]
+  );
+
   const filteredMails = React.useMemo(() => {
     if (mailboxView === "inbox" && listFilter === "unread") {
       return localMails.filter((m) => !m.isRead);
@@ -112,7 +127,7 @@ export function MailComponent({
 
   React.useEffect(() => {
     if (!mail.selected && filteredMails[0]?.id) {
-      setMail({ ...mail, selected: filteredMails[0].id });
+      setMail((prev) => ({ ...prev, selected: filteredMails[0].id }));
     }
   }, [mail.selected, filteredMails, setMail]);
 
@@ -334,6 +349,7 @@ export function MailComponent({
                 accountId={activeAccountId}
                 accounts={accounts}
                 mailboxAddress={activeMailboxAddress}
+                onSent={handleSentMail}
                 trigger={
                   <Button
                     size="sm"
@@ -361,6 +377,7 @@ export function MailComponent({
               onBack={() => setMobileReadOpen(false)}
               onPatchMail={patchMail}
               onRemoveMail={removeMail}
+              onSent={handleSentMail}
             />
           ) : (
             listPane
@@ -405,6 +422,7 @@ export function MailComponent({
               mailboxView={mailboxView}
               onPatchMail={patchMail}
               onRemoveMail={removeMail}
+              onSent={handleSentMail}
             />
           </div>
         </ResizablePanel>

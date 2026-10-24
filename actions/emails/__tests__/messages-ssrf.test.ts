@@ -4,7 +4,7 @@ jest.mock("nodemailer", () => ({ __esModule: true, default: { createTransport } 
 jest.mock("@/lib/auth-server", () => ({ getSession: jest.fn() }));
 jest.mock("@/lib/prisma", () => ({
   prismadb: {
-    emailAccount: { findFirst: jest.fn() },
+    emailAccount: { findFirst: jest.fn(), findUnique: jest.fn() },
     email: { create: jest.fn().mockResolvedValue({}) },
   },
 }));
@@ -13,6 +13,9 @@ jest.mock("@/lib/net/host-guard", () => ({
   assertPublicHost: jest.fn(),
   HostNotAllowedError: class HostNotAllowedError extends Error {},
 }));
+jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
+jest.mock("@/lib/email/mailbox-cache", () => ({ invalidateMailboxCache: jest.fn() }));
+jest.mock("@/inngest/client", () => ({ inngest: { send: jest.fn().mockResolvedValue({}) } }));
 
 import { getSession } from "@/lib/auth-server";
 import { prismadb } from "@/lib/prisma";
@@ -22,14 +25,21 @@ import { sendEmail } from "@/actions/emails/messages";
 const getSess = getSession as jest.Mock;
 const guard = assertPublicHost as jest.Mock;
 const findAcc = prismadb.emailAccount.findFirst as jest.Mock;
+const findUniqueAcc = prismadb.emailAccount.findUnique as jest.Mock;
 
 beforeEach(() => {
   jest.clearAllMocks();
   getSess.mockResolvedValue({ user: { id: "u1" } });
 });
 
+function setAccount(data: any) {
+  const full = { isActive: true, delegateUserIds: [], sendProvider: "SMTP", ...data };
+  findAcc.mockResolvedValue(full);
+  findUniqueAcc.mockResolvedValue(full);
+}
+
 it("a blocked stored SMTP host is not dialled", async () => {
-  findAcc.mockResolvedValue({
+  setAccount({
     id: "a1", userId: "u1", smtpHost: "127.0.0.1", smtpPort: 465, smtpSsl: true,
     username: "u", passwordEncrypted: "enc",
   });
@@ -41,7 +51,7 @@ it("a blocked stored SMTP host is not dialled", async () => {
 });
 
 it("an allowed host dials the PINNED IP with servername=hostname and cert verification on", async () => {
-  findAcc.mockResolvedValue({
+  setAccount({
     id: "a1", userId: "u1", smtpHost: "smtp.example.com", smtpPort: 465, smtpSsl: true,
     username: "u", passwordEncrypted: "enc",
   });
@@ -54,7 +64,7 @@ it("an allowed host dials the PINNED IP with servername=hostname and cert verifi
 });
 
 it("allowSelfSignedTls opts out of cert verification", async () => {
-  findAcc.mockResolvedValue({
+  setAccount({
     id: "a1", userId: "u1", smtpHost: "smtp.example.com", smtpPort: 465, smtpSsl: true,
     allowSelfSignedTls: true, username: "u", passwordEncrypted: "enc",
   });
