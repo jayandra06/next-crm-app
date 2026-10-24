@@ -29,6 +29,7 @@ export function Nav({ links }: NavProps) {
         const inner = (
           <Link
             href={link.href}
+            prefetch={false}
             className={cn(
               "relative flex h-9 w-full items-center gap-2 rounded-lg px-2 transition-colors",
               "justify-center sm:justify-start",

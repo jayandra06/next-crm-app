@@ -63,6 +63,7 @@ interface MailDisplayProps {
   onBack?: () => void;
   onPatchMail?: (id: string, patch: Partial<Mail>) => void;
   onRemoveMail?: (id: string) => void;
+  onSent?: (sentMail?: any) => void;
 }
 
 export function MailDisplay({
@@ -74,6 +75,7 @@ export function MailDisplay({
   onBack,
   onPatchMail,
   onRemoveMail,
+  onSent,
 }: MailDisplayProps) {
   const [busy, setBusy] = useState(false);
   const [fetchedEmail, setFullEmail] = useState<Awaited<ReturnType<typeof getEmail>> | null>(null);
@@ -329,6 +331,7 @@ export function MailDisplay({
                   mode="reply"
                   replyTo={composeMail}
                   initialAiPrompt="Write a professional reply that addresses their message clearly and politely."
+                  onSent={onSent}
                   trigger={
                     <Button
                       variant="ghost"
@@ -351,6 +354,7 @@ export function MailDisplay({
             mailboxAddress={mailboxAddress}
             mode="reply"
             replyTo={composeMail}
+            onSent={onSent}
             trigger={
               <Button variant="ghost" size="icon" className={iconBtn} disabled={!mail || !canCompose}>
                 <Reply className="h-4 w-4" />
@@ -363,6 +367,7 @@ export function MailDisplay({
             mailboxAddress={mailboxAddress}
             mode="reply-all"
             replyTo={composeMail}
+            onSent={onSent}
             trigger={
               <Button variant="ghost" size="icon" className={iconBtn} disabled={!mail || !canCompose}>
                 <ReplyAll className="h-4 w-4" />
@@ -375,6 +380,7 @@ export function MailDisplay({
             mailboxAddress={mailboxAddress}
             mode="forward"
             replyTo={composeMail}
+            onSent={onSent}
             trigger={
               <Button variant="ghost" size="icon" className={iconBtn} disabled={!mail || !canCompose}>
                 <Forward className="h-4 w-4" />

@@ -11,6 +11,8 @@ import { sendMailViaResend } from "@/lib/email/resend-mail";
 import { resolveMailboxAccess } from "@/lib/email/mailbox-access";
 import { fetchUploadBuffer } from "@/lib/email/fetch-upload-buffer";
 import { inngest } from "@/inngest/client";
+import { revalidatePath } from "next/cache";
+import { invalidateMailboxCache } from "@/lib/email/mailbox-cache";
 
 const PAGE_SIZE = 50;
 const MAX_COUNT = 10_000;
@@ -151,7 +153,7 @@ type SendInput = {
 };
 
 export async function sendEmail(input: SendInput) {
-  await requireSession();
+  const sessionUserId = await requireSession();
   const access = await resolveMailboxAccess(input.accountId);
   if (!access.canSend) throw new Error("You cannot send from this mailbox");
 
@@ -231,13 +233,14 @@ export async function sendEmail(input: SendInput) {
   }
 
   // Write sent message to DB immediately so it appears in Sent view
-  await prismadb.email.create({
+  const createdEmail = await prismadb.email.create({
     data: {
       emailAccountId: input.accountId,
       userId: access.mailboxUserId,
       rfcMessageId,
       folder: EmailFolder.SENT,
       subject: input.subject,
+      fromName: account.fromName ?? null,
       fromEmail: account.username,
       toRecipients: input.to.map((e) => ({ email: e })),
       ccRecipients: input.cc?.map((e) => ({ email: e })) ?? [],
@@ -254,6 +257,25 @@ export async function sendEmail(input: SendInput) {
       isRead: true,
     },
   });
+
+  void inngest.send({ name: "email/link-crm", data: { emailId: createdEmail.id } }).catch(() => {});
+
+  const userIdsToInvalidate = new Set<string>([
+    sessionUserId,
+    access.mailboxUserId,
+    account.userId,
+    ...(account.delegateUserIds ?? []),
+  ]);
+  await Promise.all(
+    Array.from(userIdsToInvalidate).filter(Boolean).map((uid) =>
+      invalidateMailboxCache(uid, input.accountId)
+    )
+  );
+
+  revalidatePath("/[locale]/(routes)/emails", "page");
+  revalidatePath("/emails");
+
+  return serializeDecimals(createdEmail);
 }
 
 export async function getUnreadInboxCount(): Promise<number> {
