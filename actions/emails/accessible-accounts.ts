@@ -64,8 +64,8 @@ async function loadAccessibleAccounts(
 
 const cachedAccountsForUser = unstable_cache(
   async (userId: string, elevated: boolean) => loadAccessibleAccounts(userId, elevated),
-  ["accessible-email-accounts-v2"],
-  { revalidate: 120 }
+  ["accessible-email-accounts-v3"],
+  { revalidate: 120, tags: ["accessible-email-accounts"] }
 );
 
 /** Mailboxes the signed-in user may view (own, delegated, or all for admin/manager). */

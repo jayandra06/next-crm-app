@@ -16,13 +16,6 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -42,8 +35,6 @@ import {
   UserPlus,
   Zap,
 } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -60,23 +51,28 @@ import {
   adminCreateEmailAccount,
   adminDeleteEmailAccount,
   adminSetEmailAccountActive,
-  adminSetEmailAccountDelegates,
 } from "@/actions/admin/email-accounts";
 import type { getAdminEmailAccounts } from "@/actions/admin/email-accounts";
+import type { MailboxDelegate } from "@/actions/emails/delegates";
 import { MailboxExternalSetupPanel } from "./MailboxExternalSetupPanel";
+import { MailboxShareDialog } from "./MailboxShareDialog";
+import { UserSearchField } from "./UserSearchField";
 
 type ProfileAccount = Awaited<ReturnType<typeof getEmailAccounts>>[number];
 type AdminAccount = Awaited<ReturnType<typeof getAdminEmailAccounts>>[number];
 
-type AssignableUser = { id: string; email: string; name: string | null };
+type ShareTarget = {
+  id: string;
+  label: string;
+  username: string;
+  ownerName?: string | null;
+  ownerId?: string | null;
+  delegates: MailboxDelegate[];
+};
 
 type EmailAccountsListProps =
   | { accounts: ProfileAccount[]; admin?: false }
-  | {
-      accounts: AdminAccount[];
-      admin: true;
-      assignableUsers: AssignableUser[];
-    };
+  | { accounts: AdminAccount[]; admin: true };
 
 function mailboxInitials(label: string) {
   const parts = label.trim().split(/\s+/).filter(Boolean);
@@ -87,17 +83,12 @@ function mailboxInitials(label: string) {
 export function EmailAccountsList(props: EmailAccountsListProps) {
   const { accounts } = props;
   const isAdmin = props.admin === true;
-  const assignableUsers = isAdmin ? props.assignableUsers : [];
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [testing, setTesting] = useState(false);
   const [form, setForm] = useState({ label: "", fromName: "", username: "" });
-  const [assignUserId, setAssignUserId] = useState("");
-  const [delegateOpen, setDelegateOpen] = useState(false);
-  const [delegateAccountId, setDelegateAccountId] = useState<string | null>(null);
-  const [delegateOwnerId, setDelegateOwnerId] = useState<string | null>(null);
-  const [delegateSelected, setDelegateSelected] = useState<string[]>([]);
-  const [savingDelegates, setSavingDelegates] = useState(false);
+  const [assignUser, setAssignUser] = useState<MailboxDelegate | null>(null);
+  const [shareTarget, setShareTarget] = useState<ShareTarget | null>(null);
 
   const refresh = () => router.refresh();
   const resendAccounts = accounts.filter((a) => a.sendProvider === EmailSendProvider.RESEND);
@@ -115,27 +106,17 @@ export function EmailAccountsList(props: EmailAccountsListProps) {
     else toast.error(result.error ?? "Resend check failed");
   }
 
-  function openDelegateDialog(acc: AdminAccount) {
-    const ownerId = acc.user?.id ?? null;
-    setDelegateAccountId(acc.id);
-    setDelegateOwnerId(ownerId);
-    setDelegateSelected(acc.delegateUserIds ?? []);
-    setDelegateOpen(true);
-  }
-
-  async function saveDelegates() {
-    if (!delegateAccountId) return;
-    setSavingDelegates(true);
-    try {
-      await adminSetEmailAccountDelegates(delegateAccountId, delegateSelected);
-      toast.success("Delegates updated");
-      setDelegateOpen(false);
-      refresh();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to update delegates");
-    } finally {
-      setSavingDelegates(false);
-    }
+  function openShare(acc: ProfileAccount | AdminAccount) {
+    const ownerName = "user" in acc && acc.user ? (acc.user.name ?? acc.user.email) : null;
+    const ownerId = "user" in acc && acc.user ? acc.user.id : "userId" in acc ? acc.userId : null;
+    setShareTarget({
+      id: acc.id,
+      label: acc.label,
+      username: acc.username,
+      ownerName,
+      ownerId,
+      delegates: acc.delegates,
+    });
   }
 
   async function handleCreate() {
@@ -150,17 +131,18 @@ export function EmailAccountsList(props: EmailAccountsListProps) {
       username: form.username.trim(),
     };
     if (isAdmin) {
-      if (!assignUserId) {
+      if (!assignUser) {
         toast.error("Choose a CRM user for this mailbox");
         return;
       }
-      await adminCreateEmailAccount(assignUserId, payload);
+      await adminCreateEmailAccount(assignUser.id, payload);
     } else {
       await createEmailAccount(payload);
     }
     toast.success("Resend mailbox added");
     setOpen(false);
     setForm({ label: "", fromName: "", username: "" });
+    setAssignUser(null);
     refresh();
   }
 
@@ -245,10 +227,12 @@ export function EmailAccountsList(props: EmailAccountsListProps) {
                     {acc.user.name ?? acc.user.email}
                   </p>
                 )}
-                {isAdmin && "delegateUserIds" in acc && acc.delegateUserIds.length > 0 && (
-                  <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <UserPlus className="h-3.5 w-3.5 shrink-0" />
-                    {acc.delegateUserIds.length} delegate{acc.delegateUserIds.length === 1 ? "" : "s"}
+                {acc.delegates.length > 0 && (
+                  <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                    <UserPlus className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    <span>
+                      Shared with {acc.delegates.map((person) => person.name).join(", ")}
+                    </span>
                   </p>
                 )}
                 {acc.lastSyncedAt && (
@@ -267,7 +251,14 @@ export function EmailAccountsList(props: EmailAccountsListProps) {
               </div>
             </div>
 
-            <DropdownMenu>
+            <div className="flex shrink-0 items-center gap-2 self-start sm:self-center">
+              {!legacy && (
+                <Button type="button" variant="outline" className="gap-2" onClick={() => openShare(acc)}>
+                  <UserPlus className="h-4 w-4" />
+                  Share
+                </Button>
+              )}
+              <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="icon" className="shrink-0 self-start sm:self-center">
                   <MoreHorizontal className="h-4 w-4" />
@@ -278,10 +269,10 @@ export function EmailAccountsList(props: EmailAccountsListProps) {
                 <DropdownMenuItem onClick={() => handleToggle(acc.id, acc.isActive)}>
                   {acc.isActive ? "Pause mailbox" : "Activate mailbox"}
                 </DropdownMenuItem>
-                {isAdmin && !legacy && (
-                  <DropdownMenuItem onClick={() => openDelegateDialog(acc as AdminAccount)}>
+                {!legacy && (
+                  <DropdownMenuItem onClick={() => openShare(acc)}>
                     <UserPlus className="mr-2 h-4 w-4" />
-                    Manage delegates
+                    Share access
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
@@ -293,7 +284,8 @@ export function EmailAccountsList(props: EmailAccountsListProps) {
                   Delete
                 </DropdownMenuItem>
               </DropdownMenuContent>
-            </DropdownMenu>
+              </DropdownMenu>
+            </div>
           </CardContent>
         </Card>
       </li>
@@ -353,56 +345,20 @@ export function EmailAccountsList(props: EmailAccountsListProps) {
         </ul>
       )}
 
-      {isAdmin && (
-        <Dialog open={delegateOpen} onOpenChange={setDelegateOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Mailbox delegates</DialogTitle>
-              <DialogDescription>
-                Selected users can open this inbox (view as) and send email from this address (send as).
-                They cannot change SMTP settings or delete the mailbox.
-              </DialogDescription>
-            </DialogHeader>
-            <ScrollArea className="max-h-64 pr-3">
-              <ul className="space-y-2">
-                {assignableUsers
-                  .filter((u) => u.id !== delegateOwnerId)
-                  .map((u) => {
-                    const checked = delegateSelected.includes(u.id);
-                    return (
-                      <li key={u.id} className="flex items-start gap-2">
-                        <Checkbox
-                          id={`delegate-${u.id}`}
-                          checked={checked}
-                          onCheckedChange={(next) => {
-                            setDelegateSelected((prev) =>
-                              next === true
-                                ? [...prev, u.id]
-                                : prev.filter((id) => id !== u.id)
-                            );
-                          }}
-                        />
-                        <label
-                          htmlFor={`delegate-${u.id}`}
-                          className="cursor-pointer text-sm leading-tight"
-                        >
-                          {u.name ? `${u.name} (${u.email})` : u.email}
-                        </label>
-                      </li>
-                    );
-                  })}
-              </ul>
-            </ScrollArea>
-            <DialogFooter>
-              <Button variant="outline" type="button" onClick={() => setDelegateOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="button" onClick={() => void saveDelegates()} disabled={savingDelegates}>
-                {savingDelegates ? "Saving…" : "Save delegates"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+      {shareTarget && (
+        <MailboxShareDialog
+          open
+          onOpenChange={(next) => {
+            if (!next) setShareTarget(null);
+          }}
+          account={shareTarget}
+          delegates={shareTarget.delegates}
+          ownerId={shareTarget.ownerId}
+          onDelegatesChange={(next) => {
+            setShareTarget((current) => (current ? { ...current, delegates: next } : current));
+            refresh();
+          }}
+        />
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -428,18 +384,23 @@ export function EmailAccountsList(props: EmailAccountsListProps) {
             {isAdmin && (
               <div className="space-y-2">
                 <Label>Assign to user</Label>
-                <Select value={assignUserId || undefined} onValueChange={setAssignUserId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select team member…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {assignableUsers.map((u) => (
-                      <SelectItem key={u.id} value={u.id}>
-                        {u.name ? `${u.name} (${u.email})` : u.email}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {assignUser ? (
+                  <div className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium">{assignUser.name}</span>
+                      <span className="block truncate text-xs text-muted-foreground">{assignUser.email}</span>
+                    </span>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setAssignUser(null)}>
+                      Change
+                    </Button>
+                  </div>
+                ) : (
+                  <UserSearchField
+                    excludeIds={[]}
+                    onPick={setAssignUser}
+                    placeholder="Search name or email"
+                  />
+                )}
               </div>
             )}
 
