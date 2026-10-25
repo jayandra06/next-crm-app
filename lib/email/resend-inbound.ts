@@ -3,6 +3,7 @@ import { prismadb } from "@/lib/prisma";
 import { getResendApiKey } from "@/lib/resend";
 import { inngest } from "@/inngest/client";
 import { invalidateMailboxCache } from "@/lib/email/mailbox-cache";
+import { revalidatePath } from "next/cache";
 
 export type ResendReceivedEmail = {
   id: string;
@@ -18,13 +19,17 @@ export type ResendReceivedEmail = {
   received_for?: string[];
 };
 
-export function normalizeEmailAddress(raw: string): string {
+export function normalizeEmailAddress(raw?: string | null): string {
+  if (!raw || typeof raw !== "string") return "";
   const trimmed = raw.trim();
   const angle = trimmed.match(/<([^>]+)>/);
   return (angle?.[1] ?? trimmed).toLowerCase();
 }
 
-export function parseFromField(from: string): { fromName: string | null; fromEmail: string | null } {
+export function parseFromField(from?: string | null): { fromName: string | null; fromEmail: string | null } {
+  if (!from || typeof from !== "string") {
+    return { fromName: null, fromEmail: null };
+  }
   const trimmed = from.trim();
   const angle = trimmed.match(/^(.*?)<\s*([^>]+)\s*>$/);
   if (angle) {
@@ -107,17 +112,16 @@ export async function findResendMailboxesForRecipients(
 ): Promise<ResendMailboxMatch[]> {
   if (recipientAddresses.length === 0) return [];
 
-  const wanted = new Set(recipientAddresses);
+  const wanted = new Set(recipientAddresses.map((r) => normalizeEmailAddress(r)));
   const accounts = await prismadb.emailAccount.findMany({
     where: {
-      sendProvider: EmailSendProvider.RESEND,
       isActive: true,
     },
     select: {
       id: true,
       userId: true,
       username: true,
-      user: { select: { workEmail: true } },
+      user: { select: { workEmail: true, email: true } },
     },
   });
 
@@ -127,7 +131,8 @@ export async function findResendMailboxesForRecipients(
   for (const account of accounts) {
     const mailboxAddresses = [
       normalizeEmailAddress(account.username),
-      account.user.workEmail ? normalizeEmailAddress(account.user.workEmail) : null,
+      account.user?.workEmail ? normalizeEmailAddress(account.user.workEmail) : null,
+      account.user?.email ? normalizeEmailAddress(account.user.email) : null,
     ].filter(Boolean) as string[];
 
     for (const addr of mailboxAddresses) {
@@ -140,6 +145,29 @@ export async function findResendMailboxesForRecipients(
           matchedAddress: addr,
         });
         break;
+      }
+    }
+  }
+
+  // Fallback: If no direct recipient matched, but at least one recipient address is on vensailabs.in
+  // or company domain, route to the primary admin/CEO mailbox so the message is never dropped.
+  if (matches.length === 0 && accounts.length > 0) {
+    const hasCompanyDomainRecipient = Array.from(wanted).some((addr) =>
+      addr.endsWith("@vensailabs.in")
+    );
+    if (hasCompanyDomainRecipient) {
+      const fallbackAccount =
+        accounts.find((a) =>
+          a.username.toLowerCase().startsWith("ceo@") ||
+          a.username.toLowerCase().startsWith("admin@")
+        ) || accounts[0];
+      if (fallbackAccount) {
+        matches.push({
+          id: fallbackAccount.id,
+          userId: fallbackAccount.userId,
+          username: fallbackAccount.username,
+          matchedAddress: fallbackAccount.username,
+        });
       }
     }
   }
@@ -201,9 +229,17 @@ async function storeInboundForMailbox(
     data: { lastSyncedAt: new Date() },
   });
 
-  await invalidateMailboxCache(account.userId, account.id);
+  const fullAccount = await prismadb.emailAccount.findUnique({
+    where: { id: account.id },
+    select: { delegateUserIds: true },
+  });
+  const userIds = new Set<string>([account.userId, ...(fullAccount?.delegateUserIds ?? [])]);
+  await Promise.all(Array.from(userIds).map((uid) => invalidateMailboxCache(uid, account.id)));
 
-  await inngest.send({ name: "email/link-crm", data: { emailId: created.id } });
+  revalidatePath("/[locale]/(routes)/emails", "page");
+  revalidatePath("/emails");
+
+  await inngest.send({ name: "email/link-crm", data: { emailId: created.id } }).catch(() => {});
   void inngest
     .send({
       name: "email/resend-attachments",
@@ -262,4 +298,99 @@ export function getResendInboundWebhookUrl(): string {
     process.env.BETTER_AUTH_URL?.trim() ||
     "http://localhost:3000";
   return `${base.replace(/\/$/, "")}/api/webhooks/resend/inbound`;
+}
+
+/**
+ * Polling / on-demand sync for Resend inbound emails:
+ * Fetches recent received messages from Resend API (GET /emails/receiving),
+ * checks for any that are missing from PostgreSQL, and ingests them.
+ */
+export async function syncResendInbound(
+  targetAccountId?: string
+): Promise<{ synced: number; newMessages: number }> {
+  const apiKey = await getResendApiKey();
+  if (!apiKey) return { synced: 0, newMessages: 0 };
+
+  let res: Response;
+  try {
+    res = await fetch("https://api.resend.com/emails/receiving", {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      cache: "no-store",
+    });
+  } catch (err) {
+    console.error("[resend-inbound] Failed to connect to Resend receiving API:", err);
+    return { synced: 0, newMessages: 0 };
+  }
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    console.warn("[resend-inbound] List receiving emails failed:", res.status, errText);
+    return { synced: 0, newMessages: 0 };
+  }
+
+  const json = (await res.json()) as {
+    data?: Array<{
+      id: string;
+      to?: string[];
+      from?: string;
+      subject?: string | null;
+      created_at?: string;
+      message_id?: string | null;
+      cc?: string[];
+      bcc?: string[];
+      received_for?: string[];
+    }>;
+  };
+
+  const items = json.data ?? [];
+  if (items.length === 0) return { synced: 0, newMessages: 0 };
+
+  const rfcIdsToCheck = items.flatMap((item) => {
+    const ids: string[] = [`resend-inbound-${item.id}`];
+    if (item.message_id?.trim()) {
+      ids.push(item.message_id.trim().replace(/^<|>$/g, ""));
+    }
+    return ids;
+  });
+
+  const existingEmails = await prismadb.email.findMany({
+    where: {
+      ...(targetAccountId ? { emailAccountId: targetAccountId } : {}),
+      rfcMessageId: { in: rfcIdsToCheck },
+    },
+    select: { rfcMessageId: true, emailAccountId: true },
+  });
+
+  const existingSet = new Set(
+    existingEmails.map((e) => `${e.emailAccountId}:${e.rfcMessageId}`)
+  );
+
+  let newMessagesCount = 0;
+
+  for (const item of items) {
+    const cleanRfc = (item.message_id?.trim() || `resend-inbound-${item.id}`).replace(/^<|>$/g, "");
+    if (
+      targetAccountId &&
+      (existingSet.has(`${targetAccountId}:${cleanRfc}`) ||
+        existingSet.has(`${targetAccountId}:resend-inbound-${item.id}`))
+    ) {
+      continue;
+    }
+
+    try {
+      const result = await ingestResendInboundEmail(item.id, {
+        to: item.to,
+        cc: item.cc,
+        bcc: item.bcc,
+        received_for: item.received_for,
+      });
+      if (result.stored) {
+        newMessagesCount++;
+      }
+    } catch (err) {
+      console.error(`[resend-inbound] Failed to ingest email ${item.id}:`, err);
+    }
+  }
+
+  return { synced: items.length, newMessages: newMessagesCount };
 }

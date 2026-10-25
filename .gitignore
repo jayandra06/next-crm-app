@@ -59,6 +59,7 @@ backups/
 .agent-os/
 .claude
 .vscode
+.mcp.json
 
 # Playwright
 test-results/
