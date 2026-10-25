@@ -300,7 +300,9 @@ export function EmailAccountsList(props: EmailAccountsListProps) {
             {isAdmin ? "Team mailboxes (Resend)" : "Your mailboxes (Resend)"}
           </h2>
           <p className="text-sm text-muted-foreground">
-            All send and receive traffic uses Resend — no separate mail server required.
+            {isAdmin
+              ? "Create a mailbox, then share it by searching a person's name or email. They can read that inbox and send from it."
+              : "Share a mailbox with a teammate, manager, or anyone else by searching their name or email."}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

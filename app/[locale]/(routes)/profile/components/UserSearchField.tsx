@@ -73,7 +73,7 @@ export function UserSearchField({
     setSearched(false);
   }
 
-  function onKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+  function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key !== "Enter") return;
     event.preventDefault();
     const q = query.trim().toLowerCase();
