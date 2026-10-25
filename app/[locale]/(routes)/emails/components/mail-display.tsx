@@ -173,7 +173,7 @@ export function MailDisplay({
 
   return (
     <div className="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-background">
-      <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-border/40 bg-background px-2 py-2 sm:px-3">
+      <div className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-border/40 bg-background px-2 py-2 sm:px-3">
         <div className="flex min-w-0 shrink items-center gap-0.5">
           {onBack && (
             <Button
@@ -361,32 +361,34 @@ export function MailDisplay({
               </Button>
             }
           />
-          <ComposeModal
-            accountId={activeAccountId ?? ""}
-            accounts={accounts}
-            mailboxAddress={mailboxAddress}
-            mode="reply-all"
-            replyTo={composeMail}
-            onSent={onSent}
-            trigger={
-              <Button variant="ghost" size="icon" className={iconBtn} disabled={!mail || !canCompose}>
-                <ReplyAll className="h-4 w-4" />
-              </Button>
-            }
-          />
-          <ComposeModal
-            accountId={activeAccountId ?? ""}
-            accounts={accounts}
-            mailboxAddress={mailboxAddress}
-            mode="forward"
-            replyTo={composeMail}
-            onSent={onSent}
-            trigger={
-              <Button variant="ghost" size="icon" className={iconBtn} disabled={!mail || !canCompose}>
-                <Forward className="h-4 w-4" />
-              </Button>
-            }
-          />
+          <div className="hidden sm:contents">
+            <ComposeModal
+              accountId={activeAccountId ?? ""}
+              accounts={accounts}
+              mailboxAddress={mailboxAddress}
+              mode="reply-all"
+              replyTo={composeMail}
+              onSent={onSent}
+              trigger={
+                <Button variant="ghost" size="icon" className={iconBtn} disabled={!mail || !canCompose}>
+                  <ReplyAll className="h-4 w-4" />
+                </Button>
+              }
+            />
+            <ComposeModal
+              accountId={activeAccountId ?? ""}
+              accounts={accounts}
+              mailboxAddress={mailboxAddress}
+              mode="forward"
+              replyTo={composeMail}
+              onSent={onSent}
+              trigger={
+                <Button variant="ghost" size="icon" className={iconBtn} disabled={!mail || !canCompose}>
+                  <Forward className="h-4 w-4" />
+                </Button>
+              }
+            />
+          </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className={iconBtn} disabled={!mail}>

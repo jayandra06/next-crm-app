@@ -1,6 +1,6 @@
 "use client";
 
-import { format, formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
@@ -18,7 +18,7 @@ function formatWhen(sentAt: Date | string | null | undefined) {
   if (!sentAt) return "";
   const d = sentAt instanceof Date ? sentAt : new Date(sentAt);
   if (Number.isNaN(d.getTime())) return "";
-  return `${format(d, "EEE, MMM d, yyyy · h:mm a")} (${formatDistanceToNow(d, { addSuffix: true })})`;
+  return format(d, "MMM d · h:mm a");
 }
 
 type Props = {

@@ -25,7 +25,7 @@ const Container = ({
         description={description}
         visibility={visibility}
       />
-      <Separator className="my-5 bg-border/60" />
+      <Separator className="my-3 bg-border/60 sm:my-5" />
       <div className="flex-1 min-h-0 w-full">
         {children}
       </div>

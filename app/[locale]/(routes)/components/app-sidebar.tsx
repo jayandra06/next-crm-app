@@ -14,6 +14,7 @@ import {
 import { Building2, Puzzle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NavMain } from "./nav-main";
+import { MobileAppDock } from "./MobileAppDock";
 import getDashboardMenuItem from "./menu-items/Dashboard";
 import getCrmMenuItem from "./menu-items/Crm";
 import getProjectsMenuItem from "./menu-items/Projects";
@@ -161,6 +162,7 @@ export function AppSidebar({
   }
 
   return (
+    <>
     <Sidebar
       collapsible="icon"
       className="border-r border-sidebar-border/70 bg-sidebar"
@@ -204,5 +206,7 @@ export function AppSidebar({
       {/* Rail for toggling sidebar on desktop */}
       <SidebarRail />
     </Sidebar>
+    <MobileAppDock items={navItems} />
+    </>
   );
 }

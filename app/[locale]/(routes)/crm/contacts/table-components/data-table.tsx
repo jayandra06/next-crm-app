@@ -101,7 +101,7 @@ export function ContactsDataTable<TData, TValue>({
           <DataTableToolbar table={table} />
           {table.getSelectedRowModel().rows.length > 0 && (
             <>
-              <div className="flex items-center gap-2 py-2 px-1 bg-muted/50 rounded-md border">
+              <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/50 px-2 py-2">
                 <span className="text-sm text-muted-foreground">
                   {table.getSelectedRowModel().rows.length} selected
                 </span>

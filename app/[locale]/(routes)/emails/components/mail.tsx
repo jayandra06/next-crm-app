@@ -1,6 +1,7 @@
 "use client";
 import * as React from "react";
 import { Archive, Inbox, PenLine, RefreshCw, Send, ShieldAlert, Star, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
@@ -26,6 +27,7 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { bulkSetRead, bulkTrash } from "@/actions/emails/mailbox-actions";
 import { syncMailboxAction } from "@/actions/emails/sync";
 
@@ -162,8 +164,12 @@ export function MailComponent({
   }, [isLargeScreen]);
 
   React.useEffect(() => {
-    if (!isLargeScreen && mail.selected) setMobileReadOpen(true);
-  }, [mail.selected, isLargeScreen]);
+    const reading = !isLargeScreen && mobileReadOpen;
+    document.body.dataset.emailReading = reading ? "true" : "false";
+    return () => {
+      delete document.body.dataset.emailReading;
+    };
+  }, [isLargeScreen, mobileReadOpen]);
 
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -263,7 +269,30 @@ export function MailComponent({
   };
 
   const listPane = (
-    <div className="grid h-full min-h-0 grid-rows-[auto_auto_auto_minmax(0,1fr)] overflow-hidden">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      <div className="flex shrink-0 items-center gap-2 border-b border-border/40 px-2 py-2 lg:hidden">
+        <div className="min-w-0 flex-1">
+          <AccountSwitcher accounts={accounts} activeAccountId={activeAccountId} />
+        </div>
+      </div>
+      <div className="flex shrink-0 gap-1 overflow-x-auto px-2 py-1.5 lg:hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {navLinks.map((link) => (
+          <Link
+            key={link.title}
+            href={link.href}
+            className={cn(
+              "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-medium",
+              link.variant === "default"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted/70 text-muted-foreground"
+            )}
+          >
+            <link.icon className="h-3.5 w-3.5" />
+            {link.title}
+            {link.label ? <span className="tabular-nums">{link.label}</span> : null}
+          </Link>
+        ))}
+      </div>
       <div className="flex shrink-0 items-center gap-2 border-b border-border/30 px-3 py-2.5 sm:px-4">
         <h2 className="text-sm font-semibold tracking-tight">
           {MAILBOX_VIEW_LABELS[mailboxView]}
@@ -352,7 +381,7 @@ export function MailComponent({
         </div>
       )}
       <Separator className="opacity-50" />
-      <div className="min-h-0 overflow-hidden">
+      <div className="min-h-0 flex-1 overflow-hidden">
         <MailList
           items={filteredMails}
           page={page}
@@ -361,6 +390,9 @@ export function MailComponent({
           selectedIds={selectedIds}
           onSelectedIdsChange={setSelectedIds}
           {...mailListHandlers}
+          onOpen={() => {
+            if (!isLargeScreen) setMobileReadOpen(true);
+          }}
         />
       </div>
     </div>
@@ -370,7 +402,7 @@ export function MailComponent({
     <TooltipProvider delayDuration={0}>
       <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
       <div className="flex h-full min-h-0 w-full max-w-full min-w-0 flex-1 overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm">
-        <aside className="flex w-[4.5rem] shrink-0 flex-col overflow-y-auto overscroll-contain border-r border-border/40 bg-muted/30 sm:w-44">
+        <aside className="hidden w-44 shrink-0 flex-col overflow-y-auto overscroll-contain border-r border-border/40 bg-muted/30 lg:flex">
           <div className="space-y-1 p-2">
             <p className="hidden px-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground sm:block">
               View as
@@ -463,6 +495,22 @@ export function MailComponent({
         </ResizablePanel>
       </ResizablePanelGroup>
       </div>
+      {!isLargeScreen && !mobileReadOpen && activeAccountId ? (
+        <ComposeModal
+          accountId={activeAccountId}
+          accounts={accounts}
+          mailboxAddress={activeMailboxAddress}
+          trigger={
+            <Button
+              size="icon"
+              className="mobile-compose-fab fixed right-3 z-40 h-14 w-14 rounded-full shadow-lg shadow-primary/30 lg:hidden bottom-[calc(5.15rem+env(safe-area-inset-bottom))]"
+              aria-label="Compose"
+            >
+              <PenLine className="h-5 w-5" />
+            </Button>
+          }
+        />
+      ) : null}
       </div>
     </TooltipProvider>
   );

@@ -142,11 +142,18 @@
 @layer utilities {
   .app-main-scroll {
     @apply flex min-h-0 w-full flex-1 flex-col overflow-y-auto;
+    padding-bottom: calc(5.4rem + env(safe-area-inset-bottom));
     background: linear-gradient(
       180deg,
       hsl(var(--background) / 0.4) 0%,
       hsl(var(--muted) / 0.35) 100%
     );
+  }
+
+  @media (min-width: 768px) {
+    .app-main-scroll {
+      padding-bottom: 0;
+    }
   }
 
   .app-content-wrap {
@@ -174,6 +181,23 @@
 
   .app-main-scroll:has([data-emails-shell]) {
     @apply flex min-h-0 flex-1 flex-col overflow-hidden;
+    padding-bottom: 0;
+  }
+
+  @media (max-width: 767px) {
+    [data-emails-shell] {
+      padding-bottom: calc(5.4rem + env(safe-area-inset-bottom));
+    }
+
+    body[data-email-reading="true"] .mobile-app-dock,
+    body[data-email-reading="true"] .mobile-menu-fab,
+    body[data-email-reading="true"] .mobile-compose-fab {
+      display: none;
+    }
+
+    body[data-email-reading="true"] [data-emails-shell] {
+      padding-bottom: 0;
+    }
   }
 
   .app-content-wrap:has([data-emails-shell]) {

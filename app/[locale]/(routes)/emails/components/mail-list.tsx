@@ -1,6 +1,8 @@
 "use client";
 
-import { formatDistanceToNow } from "date-fns";
+import { useRef } from "react";
+import { format, formatDistanceToNow } from "date-fns";
+import { primeEmailDetail } from "@/lib/email/client-email-cache";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight, Star } from "lucide-react";
 
@@ -23,6 +25,7 @@ interface MailListProps {
   mailboxView?: MailboxView;
   onPatchMail?: (id: string, patch: Partial<Mail>) => void;
   onRemoveMail?: (id: string) => void;
+  onOpen?: (id: string) => void;
 }
 
 export function MailList({
@@ -35,10 +38,32 @@ export function MailList({
   mailboxView = "inbox",
   onPatchMail,
   onRemoveMail,
+  onOpen,
 }: MailListProps) {
   const [mail, setMail] = useMail();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const prefetchedIds = useRef(new Set<string>());
+
+  function shortWhen(sentAt: string | Date) {
+    const d = new Date(sentAt);
+    if (Number.isNaN(d.getTime())) return "";
+    const mins = Math.round((Date.now() - d.getTime()) / 60000);
+    if (mins < 1) return "now";
+    if (mins < 60) return `${mins}m`;
+    const hours = Math.round(mins / 60);
+    if (hours < 24) return `${hours}h`;
+    const days = Math.round(hours / 24);
+    if (days < 7) return `${days}d`;
+    return format(d, "MMM d");
+  }
+
+  function prefetchMessage(id: string) {
+    if (prefetchedIds.current.has(id)) return;
+    prefetchedIds.current.add(id);
+    primeEmailDetail(id);
+  }
+
   const safeTotalPages = Math.max(totalPages, total > 0 ? 1 : 0);
   const rangeStart = total === 0 ? 0 : (page - 1) * MAILBOX_PAGE_SIZE + 1;
   const rangeEnd = total === 0 ? 0 : Math.min(page * MAILBOX_PAGE_SIZE, total);
@@ -85,9 +110,17 @@ export function MailList({
                 mail.selected === item.id && "border-primary/20 bg-primary/[0.07] shadow-sm",
                 !item.isRead && mail.selected !== item.id && "bg-background/80 font-medium"
               )}
-              onClick={() => setMail({ ...mail, selected: item.id })}
+              onClick={() => {
+                setMail({ ...mail, selected: item.id });
+                onOpen?.(item.id);
+              }}
+              onMouseEnter={() => prefetchMessage(item.id)}
+              onFocus={() => prefetchMessage(item.id)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") setMail({ ...mail, selected: item.id });
+                if (e.key === "Enter") {
+                  setMail({ ...mail, selected: item.id });
+                  onOpen?.(item.id);
+                }
               }}
             >
               <Checkbox
@@ -113,7 +146,10 @@ export function MailList({
                     {item.fromName ?? item.fromEmail ?? "Unknown"}
                   </div>
                   {!item.isRead && <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />}
-                  <div className="ml-auto shrink-0 text-xs text-muted-foreground">
+                  <div className="ml-auto shrink-0 text-xs text-muted-foreground sm:hidden">
+                    {item.sentAt ? shortWhen(item.sentAt) : ""}
+                  </div>
+                  <div className="ml-auto hidden shrink-0 text-xs text-muted-foreground sm:block">
                     {item.sentAt
                       ? formatDistanceToNow(new Date(item.sentAt), { addSuffix: true })
                       : ""}

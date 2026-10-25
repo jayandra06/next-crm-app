@@ -1,6 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import dynamic from "next/dynamic";
+import { Search, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import Feedback from "./Feedback";
 import { HeaderMailButton } from "./HeaderMailButton";
 import { HeaderNotifications } from "./HeaderNotifications";
@@ -46,25 +49,57 @@ type Props = {
 export function HeaderLive({ user, initialLive }: Props) {
   const { data } = useLiveSummary(initialLive);
   const live = data ?? initialLive;
+  const [searchOpen, setSearchOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-30 flex h-[3.25rem] shrink-0 items-center gap-3 border-b border-border/50 bg-background px-3 sm:px-5">
-      <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
-        <SidebarTrigger className="-ml-0.5 h-9 w-9 shrink-0 rounded-xl" />
+    <header className="sticky top-0 z-30 flex h-[3.25rem] shrink-0 items-center gap-2 border-b border-border/50 bg-background px-2 sm:gap-3 sm:px-5">
+      {searchOpen ? (
+        <div className="flex min-w-0 flex-1 items-center gap-2 sm:hidden">
+          <div className="min-w-0 flex-1">
+            <FulltextSearch autoFocus />
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 shrink-0 rounded-xl"
+            aria-label="Close search"
+            onClick={() => setSearchOpen(false)}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      ) : null}
+      <div className={searchOpen ? "hidden min-w-0 flex-1 items-center gap-2 sm:flex sm:gap-3" : "flex min-w-0 flex-1 items-center gap-2 sm:gap-3"}>
+        <SidebarTrigger className="-ml-0.5 hidden h-9 w-9 shrink-0 rounded-xl md:inline-flex" />
         <Separator orientation="vertical" className="hidden h-5 sm:block" />
-        <div className="min-w-0 flex-1">
+        <div className="hidden min-w-0 flex-1 sm:block">
           <FulltextSearch />
         </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 shrink-0 rounded-xl sm:hidden"
+          aria-label="Search"
+          onClick={() => setSearchOpen(true)}
+        >
+          <Search className="h-4 w-4" />
+        </Button>
       </div>
 
-      <div className="flex shrink-0 items-center gap-0.5 rounded-2xl border border-border/50 bg-muted/25 p-0.5 sm:gap-1 sm:p-1">
-        <CrmAssistantSheet />
+      <div className={`${searchOpen ? "hidden sm:flex" : "flex"} shrink-0 items-center gap-0.5 rounded-2xl border border-border/50 bg-muted/25 p-0.5 sm:gap-1 sm:p-1`}>
+        <div className="hidden sm:flex">
+          <CrmAssistantSheet />
+        </div>
         <HeaderMailButton unreadCount={live.emailUnreadCount} />
         <HeaderChatPanel unreadCount={live.chatUnreadCount} />
         <HeaderNotifications totalCount={live.notificationCount} items={live.items} />
         <Separator orientation="vertical" className="mx-0.5 hidden h-5 sm:block" />
-        <CommandComponent />
-        <SetLanguage userId={user.id} />
+        <div className="hidden items-center sm:flex">
+          <CommandComponent />
+          <SetLanguage userId={user.id} />
+        </div>
         <div className="hidden md:flex">
           <Feedback />
         </div>
