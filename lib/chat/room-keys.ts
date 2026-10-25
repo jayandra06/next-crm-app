@@ -9,6 +9,16 @@ export function dmRoomKey(userIdA: string, userIdB: string): string {
   return `dm:${sortedA}:${sortedB}`;
 }
 
+export function inboxRoomKeys(currentUserId: string, peerIds: string[]): string[] {
+  const me = currentUserId.trim().toLowerCase();
+  return [
+    GENERAL_CHAT_ROOM,
+    ...peerIds
+      .filter((id) => id.trim().toLowerCase() !== me)
+      .map((id) => dmRoomKey(currentUserId, id)),
+  ];
+}
+
 export function conferenceRoomKey(scheduleId: string): string {
   return `conf:${scheduleId.trim()}`;
 }

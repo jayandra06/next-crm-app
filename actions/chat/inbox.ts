@@ -2,7 +2,7 @@
 
 import { getSession } from "@/lib/auth-server";
 import { prismadb } from "@/lib/prisma";
-import { dmRoomKey, GENERAL_CHAT_ROOM } from "@/lib/chat/room-keys";
+import { GENERAL_CHAT_ROOM } from "@/lib/chat/room-keys";
 
 export type ChatInboxPreview = {
   roomKey: string;
@@ -108,14 +108,4 @@ export async function getChatInboxPreviews(roomKeys: string[]): Promise<ChatInbo
     console.error("[getChatInboxPreviews] Failed:", error);
     return [];
   }
-}
-
-export function inboxRoomKeys(currentUserId: string, peerIds: string[]): string[] {
-  const me = currentUserId.trim().toLowerCase();
-  return [
-    GENERAL_CHAT_ROOM,
-    ...peerIds
-      .filter((id) => id.trim().toLowerCase() !== me)
-      .map((id) => dmRoomKey(currentUserId, id)),
-  ];
 }

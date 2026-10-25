@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-server";
 import { getCachedTeamDirectory } from "@/lib/server/cached-team";
-import { getChatInboxPreviews, inboxRoomKeys } from "@/actions/chat/inbox";
-import { dmRoomKey, GENERAL_CHAT_ROOM, parseRoomKey } from "@/lib/chat/room-keys";
+import { getChatInboxPreviews } from "@/actions/chat/inbox";
+import { dmRoomKey, GENERAL_CHAT_ROOM, inboxRoomKeys, parseRoomKey } from "@/lib/chat/room-keys";
 import { dmMeetRoomSuffix, teamRoomName } from "@/lib/jitsi/meet-url";
 import { ChatShell } from "./components/ChatShell";
 
