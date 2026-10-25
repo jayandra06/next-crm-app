@@ -209,6 +209,9 @@ export async function sendEmail(input: SendInput) {
       port: account.smtpPort,
       secure: account.smtpSsl,
       auth: { user: account.username, pass: password },
+      connectionTimeout: 12_000,
+      greetingTimeout: 8_000,
+      socketTimeout: 20_000,
       ...({ servername: account.smtpHost } as { servername: string }),
       tls: { rejectUnauthorized: !account.allowSelfSignedTls },
     });

@@ -8,7 +8,7 @@ import { useLiveSummary } from "@/hooks/use-live-summary";
 export function EmailsLiveRefresh() {
   const pathname = usePathname();
   const router = useRouter();
-  const { data } = useLiveSummary();
+  const { data } = useLiveSummary(undefined, { refetchInterval: 15_000 });
   const prev = useRef<number | undefined>(undefined);
 
   useEffect(() => {
@@ -18,7 +18,7 @@ export function EmailsLiveRefresh() {
     if (prev.current !== undefined && prev.current !== count) {
       const timer = window.setTimeout(() => {
         if (document.visibilityState === "visible") router.refresh();
-      }, 4000);
+      }, 800);
       prev.current = count;
       return () => window.clearTimeout(timer);
     }

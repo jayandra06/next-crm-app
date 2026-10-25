@@ -1603,6 +1603,7 @@ model EmailAccount {
 
   @@index([userId])
   @@index([isActive])
+  @@index([username])
 }
 
 enum EmailFolder {

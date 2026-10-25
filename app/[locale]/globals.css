@@ -208,6 +208,16 @@
     @apply flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden;
   }
 
+  @media (max-width: 1023px) {
+    [data-mail-split] {
+      display: none !important;
+    }
+
+    .app-content-wrap:has([data-emails-shell]) {
+      padding: 0;
+    }
+  }
+
   [data-emails-shell] [data-group] {
     height: 100%;
     min-height: 0;
@@ -233,7 +243,7 @@
     line-height: 1.55;
     font-size: clamp(13px, 1.6vw, 15px);
     word-wrap: break-word;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
   }
 
   .email-html-body img,

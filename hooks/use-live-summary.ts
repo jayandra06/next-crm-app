@@ -18,13 +18,17 @@ async function fetchLiveSummary(): Promise<LiveSummary> {
 }
 
 /** Header badges — polled lightly; not loaded on every RSC navigation. */
-export function useLiveSummary(placeholder?: LiveSummary) {
+export function useLiveSummary(
+  placeholder?: LiveSummary,
+  options?: { refetchInterval?: number }
+) {
+  const refetchInterval = options?.refetchInterval ?? 60_000;
   return useQuery({
     queryKey: ["live-summary"],
     queryFn: fetchLiveSummary,
     placeholderData: placeholder,
-    staleTime: 60_000,
-    refetchInterval: 60_000,
+    staleTime: Math.min(15_000, refetchInterval),
+    refetchInterval,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
     refetchOnMount: false,

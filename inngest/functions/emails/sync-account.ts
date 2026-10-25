@@ -43,7 +43,7 @@ export const emailSyncAccount = inngest.createFunction(
   {
     id: "email-sync-account",
     name: "Email: Sync Account",
-    concurrency: { limit: 3 },
+    concurrency: { limit: 5 },
     triggers: [{ event: "email/sync-account" }],
   },
   async ({ event, step }) => {

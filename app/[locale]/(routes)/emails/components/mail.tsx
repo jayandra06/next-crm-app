@@ -293,8 +293,8 @@ export function MailComponent({
           </Link>
         ))}
       </div>
-      <div className="flex shrink-0 items-center gap-2 border-b border-border/30 px-3 py-2.5 sm:px-4">
-        <h2 className="text-sm font-semibold tracking-tight">
+      <div className="flex shrink-0 items-center gap-2 border-b border-border/30 px-3 py-2 sm:px-4 lg:py-2.5">
+        <h2 className="hidden text-sm font-semibold tracking-tight lg:block">
           {MAILBOX_VIEW_LABELS[mailboxView]}
         </h2>
         {activeAccountId && (
@@ -401,7 +401,7 @@ export function MailComponent({
   return (
     <TooltipProvider delayDuration={0}>
       <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="flex h-full min-h-0 w-full max-w-full min-w-0 flex-1 overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm">
+      <div className="flex h-full min-h-0 w-full max-w-full min-w-0 flex-1 overflow-hidden bg-card max-lg:rounded-none max-lg:border-0 lg:rounded-xl lg:border lg:border-border/60 lg:shadow-sm">
         <aside className="hidden w-44 shrink-0 flex-col overflow-y-auto overscroll-contain border-r border-border/40 bg-muted/30 lg:flex">
           <div className="space-y-1 p-2">
             <p className="hidden px-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground sm:block">
@@ -451,6 +451,7 @@ export function MailComponent({
           )}
         </div>
 
+        <div data-mail-split className="hidden h-full min-h-0 min-w-0 w-full flex-1 lg:flex">
         <ResizablePanelGroup
           id="mail-layout-group"
           orientation="horizontal"
@@ -462,7 +463,7 @@ export function MailComponent({
               document.cookie = `react-resizable-panels:layout:mail=${JSON.stringify([list, read])}`;
             }
           }}
-          className="hidden h-full min-h-0 min-w-0 w-0 flex-1 overflow-hidden lg:flex"
+          className="h-full min-h-0 min-w-0 w-full flex-1 overflow-hidden"
         >
         <ResizablePanel
           id={LIST_PANEL_ID}
@@ -494,6 +495,7 @@ export function MailComponent({
           </div>
         </ResizablePanel>
       </ResizablePanelGroup>
+        </div>
       </div>
       {!isLargeScreen && !mobileReadOpen && activeAccountId ? (
         <ComposeModal
