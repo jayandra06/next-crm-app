@@ -1,7 +1,8 @@
 "use client";
 import * as React from "react";
-import { Archive, Inbox, PenLine, Send, ShieldAlert, Star, Trash2 } from "lucide-react";
+import { Archive, Inbox, PenLine, RefreshCw, Send, ShieldAlert, Star, Trash2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 
 import { AccountSwitcher } from "@/app/[locale]/(routes)/emails/components/account-switcher";
 import { ComposeModal } from "@/app/[locale]/(routes)/emails/components/ComposeModal";
@@ -26,6 +27,7 @@ import {
 } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
 import { bulkSetRead, bulkTrash } from "@/actions/emails/mailbox-actions";
+import { syncMailboxAction } from "@/actions/emails/sync";
 
 interface MailProps {
   accounts: ConnectedAccount[];
@@ -57,8 +59,28 @@ export function MailComponent({
   const [bulkBusy, setBulkBusy] = React.useState(false);
   const [mail, setMail] = useMail();
   const [mobileReadOpen, setMobileReadOpen] = React.useState(false);
+  const [syncing, setSyncing] = React.useState(false);
   const searchParams = useSearchParams();
   const router = useRouter();
+
+  const handleSyncMailbox = React.useCallback(async () => {
+    if (!activeAccountId || syncing) return;
+    setSyncing(true);
+    try {
+      const res = await syncMailboxAction(activeAccountId);
+      if (res.newMessages > 0) {
+        toast.success(`Mailbox synced: ${res.newMessages} new message${res.newMessages > 1 ? "s" : ""} received`);
+      } else {
+        toast.success("Mailbox is up to date");
+      }
+      router.refresh();
+    } catch (err: any) {
+      console.error("[Mail] Sync failed:", err);
+      toast.error("Failed to sync mailbox: " + (err.message || "Unknown error"));
+    } finally {
+      setSyncing(false);
+    }
+  }, [activeAccountId, syncing, router]);
 
   const isLargeScreen = React.useSyncExternalStore(
     (subscribe) => {
@@ -246,6 +268,19 @@ export function MailComponent({
         <h2 className="text-sm font-semibold tracking-tight">
           {MAILBOX_VIEW_LABELS[mailboxView]}
         </h2>
+        {activeAccountId && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+            disabled={syncing}
+            onClick={handleSyncMailbox}
+            title="Check for new mail"
+            aria-label="Check for new mail"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin text-primary" : ""}`} />
+          </Button>
+        )}
         {mailboxView === "inbox" && (
           <Tabs
             value={listFilter}

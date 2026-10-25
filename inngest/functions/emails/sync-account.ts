@@ -10,6 +10,8 @@ import {
   EMAIL_INITIAL_IMPORT_MAX,
   EMAIL_SYNC_BATCH_MAX,
 } from "@/lib/email/sync-limits";
+import { syncResendInbound } from "@/lib/email/resend-inbound";
+import { invalidateMailboxCache } from "@/lib/email/mailbox-cache";
 
 const LINK_CRM_FANOUT_CHUNK = 40;
 
@@ -52,7 +54,9 @@ export const emailSyncAccount = inngest.createFunction(
     );
     if (!account) return { skipped: "account not found" };
     if (account.sendProvider === EmailSendProvider.RESEND) {
-      return { skipped: "Resend send-only mailbox" };
+      return await step.run("sync-resend-inbound", () =>
+        syncResendInbound(accountId)
+      );
     }
     const encryptedPassword = account.passwordEncrypted;
     if (!encryptedPassword) {
@@ -75,6 +79,10 @@ export const emailSyncAccount = inngest.createFunction(
           }),
           connectImap(acc).then(async (imap) => {
             try { return await searchFolder(imap, sentFolder, account.sentLastUid ?? 0); }
+            catch (sentErr) {
+              console.warn(`[email-sync] Could not search sent folder '${sentFolder}':`, sentErr);
+              return { uids: [], highestUid: account.sentLastUid ?? 0 };
+            }
             finally { imap.end(); }
           }),
         ]);
@@ -131,7 +139,10 @@ export const emailSyncAccount = inngest.createFunction(
                 await new Promise<void>((res, rej) =>
                   imap.openBox(sentFolder, true, (err) => err ? rej(err) : res())
                 );
-                return fetchHeaders(imap, sentCap);
+                return await fetchHeaders(imap, sentCap);
+              } catch (sentErr) {
+                console.warn(`[email-sync] Failed to fetch sent headers for '${sentFolder}':`, sentErr);
+                return [] as ParsedHeader[];
               } finally { imap.end(); }
             })
           : Promise.resolve([] as ParsedHeader[]),
@@ -191,6 +202,10 @@ export const emailSyncAccount = inngest.createFunction(
           })),
           skipDuplicates: true,
         });
+
+        // Invalidate Redis mailbox cache for owner and delegates so new mail appears immediately
+        const userIds = new Set<string>([account.userId, ...(account.delegateUserIds ?? [])]);
+        await Promise.all(Array.from(userIds).map((uid) => invalidateMailboxCache(uid, accountId)));
       }
 
       // 4. Fetch IDs of newly inserted emails for fan-out (one query)
