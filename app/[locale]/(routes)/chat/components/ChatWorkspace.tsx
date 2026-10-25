@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { format, formatDistanceToNow, isToday, isYesterday } from "date-fns";
-import { Hash, Paperclip, SendHorizontal, Video, Loader2 } from "lucide-react";
+import { format, isToday, isYesterday } from "date-fns";
+import { CheckCheck, ChevronLeft, Loader2, Paperclip, SendHorizontal, Users, Video } from "lucide-react";
+import { Link } from "@/i18n/navigation";
 import {
   sendChatMessage,
   type ChatAttachmentItem,
@@ -14,7 +15,6 @@ import {
 } from "@/hooks/use-chat-messages-live";
 import { useQueryClient } from "@tanstack/react-query";
 import { openJitsiMeetInNewTab } from "@/components/meet/JitsiMeetEmbed";
-import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { markChatRoomRead } from "@/actions/chat/unread";
 import { avatarGradientClass, initials } from "@/lib/chat/avatar-style";
@@ -33,20 +33,33 @@ type Props = {
   initialDraft?: string;
   isGeneral?: boolean;
   peerName?: string;
+  peerDetail?: string;
 };
-
-function formatMessageTime(iso: string) {
-  const d = new Date(iso);
-  if (isToday(d)) return format(d, "h:mm a");
-  if (isYesterday(d)) return `Yesterday ${format(d, "h:mm a")}`;
-  return format(d, "MMM d, h:mm a");
-}
 
 function dayLabel(iso: string) {
   const d = new Date(iso);
   if (isToday(d)) return "Today";
   if (isYesterday(d)) return "Yesterday";
   return format(d, "EEEE, MMM d");
+}
+
+function usePhoneLayout() {
+  const [phone, setPhone] = React.useState(false);
+  React.useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const apply = () => setPhone(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+  return phone;
+}
+
+function senderColor(id: string) {
+  const colors = ["text-[#e542a3]", "text-[#1f7aec]", "text-[#0b8466]", "text-[#c4531b]", "text-[#7f66ff]"];
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h + id.charCodeAt(i) * (i + 1)) % 9973;
+  return colors[h % colors.length];
 }
 
 function plainToHtml(text: string) {
@@ -70,6 +83,7 @@ export function ChatWorkspace({
   initialDraft,
   isGeneral = false,
   peerName,
+  peerDetail,
 }: Props) {
   const qc = useQueryClient();
   const { data: messages = [] } = useChatMessagesLive(roomKey);
@@ -181,27 +195,31 @@ export function ChatWorkspace({
     }
   }
 
-  const subtitle = isGeneral
-    ? "Whole team"
-    : peerName
-      ? peerName
-      : "Direct message";
+  const subtitle = isGeneral ? "Team channel" : peerDetail || "Direct message";
+  const coarse = usePhoneLayout();
 
   let lastDay: string | null = null;
   const canSend = !sending && !uploading && (draft.trim().length > 0 || pendingFiles.length > 0);
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-background">
-      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border/60 px-4 py-3 sm:px-5">
-        <div className="flex min-w-0 items-center gap-3">
+    <div className="flex h-full min-h-0 flex-col bg-[#efeae2] dark:bg-[#0b141a]">
+      <header className="flex shrink-0 items-center gap-1 border-b border-black/5 bg-[#f0f2f5] px-1 py-1.5 dark:border-white/10 dark:bg-[#202c33] sm:px-3">
+        <Link
+          href="/chat"
+          aria-label="Back to chats"
+          className="-ml-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#54656f] hover:bg-black/5 md:hidden dark:text-[#aebac1]"
+        >
+          <ChevronLeft className="h-6 w-6" />
+        </Link>
+        <div className="flex min-w-0 flex-1 items-center gap-2.5 py-1">
           {isGeneral ? (
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <Hash className="h-5 w-5" />
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#00a884] text-white">
+              <Users className="h-5 w-5" />
             </span>
           ) : (
             <span
               className={cn(
-                "flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br text-sm font-semibold text-white",
+                "flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-sm font-semibold text-white",
                 avatarGradientClass(roomKey)
               )}
             >
@@ -209,27 +227,27 @@ export function ChatWorkspace({
             </span>
           )}
           <div className="min-w-0">
-            <h2 className="truncate text-[15px] font-semibold">{roomTitle}</h2>
-            <p className="truncate text-xs text-muted-foreground">{subtitle}</p>
+            <h2 className="truncate text-[16px] font-semibold text-[#111b21] dark:text-[#e9edef]">{roomTitle}</h2>
+            <p className="truncate text-[12px] text-[#667781] dark:text-[#8696a0]">{subtitle}</p>
           </div>
         </div>
-        <Button
+        <button
           type="button"
-          variant="outline"
-          className="h-9 shrink-0 gap-2 rounded-full px-3.5"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#54656f] hover:bg-black/5 dark:text-[#aebac1]"
           onClick={joinMeeting}
+          aria-label="Start meeting"
+          title="Start meeting"
         >
-          <Video className="h-4 w-4" />
-          Meet
-        </Button>
+          <Video className="h-5 w-5" />
+        </button>
       </header>
 
       {meetHint && (
-        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border/60 bg-muted/40 px-4 py-2 text-sm sm:px-5">
-          <p className="text-muted-foreground">Meeting opens in its own window, so this chat stays put.</p>
+        <div className="flex shrink-0 items-center justify-between gap-3 bg-[#fff9e6] px-3 py-2 text-xs text-[#54656f] dark:bg-[#182229] dark:text-[#8696a0]">
+          <p>Meeting opens in a new window. This chat stays open.</p>
           <button
             type="button"
-            className="shrink-0 text-xs font-medium text-foreground underline-offset-2 hover:underline"
+            className="shrink-0 font-medium underline-offset-2 hover:underline"
             onClick={() => setMeetHint(false)}
           >
             Dismiss
@@ -237,23 +255,26 @@ export function ChatWorkspace({
         </div>
       )}
 
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 px-4 py-6 sm:px-6">
+      <ScrollArea className="chat-wallpaper min-h-0 flex-1">
+        <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col px-3 py-3 sm:px-4">
           {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center px-6 py-24 text-center">
-              <p className="text-base font-medium">No messages yet</p>
-              <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+            <div className="flex flex-1 items-center justify-center px-6 py-16">
+              <p className="max-w-[260px] rounded-lg bg-[#fff9e6] px-3 py-2 text-center text-[12.5px] leading-snug text-[#54656f] shadow-sm dark:bg-[#182229] dark:text-[#8696a0]">
                 {isGeneral
-                  ? "Write something for the whole team, or start a meeting."
+                  ? "This is the start of the team channel. Say hello."
                   : `This is the start of your conversation with ${peerName ?? roomTitle}.`}
               </p>
             </div>
           ) : (
-            messages.map((m) => {
+            messages.map((m, index) => {
               const mine = m.user.id === currentUserId;
               const day = dayLabel(m.createdAt);
               const showDay = day !== lastDay;
               if (showDay) lastDay = day;
+
+              const prev = index > 0 ? messages[index - 1] : null;
+              const clustered =
+                !showDay && prev?.user.id === m.user.id && dayLabel(prev.createdAt) === day;
 
               const atts = m.attachments?.length
                 ? m.attachments
@@ -264,61 +285,52 @@ export function ChatWorkspace({
               return (
                 <React.Fragment key={m.id}>
                   {showDay && (
-                    <div className="flex justify-center py-1">
-                      <span className="text-[11px] font-medium text-muted-foreground">{day}</span>
+                    <div className="my-2 flex justify-center">
+                      <span className="rounded-md bg-white/90 px-2 py-1 text-[11px] font-medium text-[#54656f] shadow-sm dark:bg-[#182229] dark:text-[#8696a0]">
+                        {day}
+                      </span>
                     </div>
                   )}
-                  <div className={cn("flex gap-2.5", mine ? "flex-row-reverse" : "flex-row")}>
-                    {!mine && (
-                      <span
-                        className={cn(
-                          "mt-5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-[11px] font-semibold text-white",
-                          avatarGradientClass(m.user.id)
-                        )}
-                      >
-                        {initials(m.user.name)}
-                      </span>
-                    )}
-                    <div className={cn("max-w-[min(100%,32rem)]", mine && "items-end")}>
-                      <p className={cn("mb-1 px-1 text-[11px] text-muted-foreground", mine && "text-right")}>
-                        {!mine && <span className="font-medium text-foreground/80">{m.user.name} · </span>}
-                        <span title={formatMessageTime(m.createdAt)}>
-                          {formatDistanceToNow(new Date(m.createdAt), { addSuffix: true })}
-                        </span>
-                      </p>
-                      <div
-                        className={cn(
-                          "rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed",
-                          mine
-                            ? "rounded-br-md bg-primary text-primary-foreground"
-                            : "rounded-bl-md bg-muted text-foreground"
-                        )}
-                      >
-                        {m.htmlBody ? (
-                          <div
-                            className={cn(
-                              "prose prose-sm max-w-none text-left [&_p]:my-0 [&_a]:underline",
-                              mine ? "prose-invert" : ""
-                            )}
-                            dangerouslySetInnerHTML={{ __html: m.htmlBody }}
-                          />
-                        ) : m.body ? (
-                          <p className="whitespace-pre-wrap text-left">{m.body}</p>
-                        ) : null}
+                  <div className={cn("flex", mine ? "justify-end" : "justify-start", clustered ? "mt-0.5" : "mt-1.5")}>
+                    <div
+                      className={cn(
+                        "relative max-w-[min(82%,28rem)] px-2 pb-1 pt-1 shadow-sm",
+                        mine
+                          ? "rounded-lg rounded-br-none bg-[#d9fdd3] text-[#111b21] dark:bg-[#005c4b] dark:text-[#e9edef]"
+                          : "rounded-lg rounded-bl-none bg-white text-[#111b21] dark:bg-[#202c33] dark:text-[#e9edef]"
+                      )}
+                    >
+                      {isGeneral && !mine && !clustered && (
+                        <p className={cn("px-0.5 text-[12.5px] font-semibold leading-tight", senderColor(m.user.id))}>
+                          {m.user.name}
+                        </p>
+                      )}
+                      {m.htmlBody ? (
+                        <div
+                          className="text-left text-[14.5px] leading-[19px] [&_a]:underline [&_p]:my-0"
+                          dangerouslySetInnerHTML={{ __html: m.htmlBody }}
+                        />
+                      ) : m.body ? (
+                        <p className="whitespace-pre-wrap text-left text-[14.5px] leading-[19px]">{m.body}</p>
+                      ) : null}
 
-                        {/* Attachments Section */}
-                        {atts.length > 0 && (
-                          <div className="mt-2.5 flex flex-col gap-2 text-left">
-                            {atts.map((att, idx) => (
-                              <ChatFileAttachment
-                                key={`${att.url}-${idx}`}
-                                file={att}
-                                mine={mine}
-                                onPreview={handleOpenPreview}
-                              />
-                            ))}
-                          </div>
-                        )}
+                      {atts.length > 0 && (
+                        <div className="mt-1.5 flex flex-col gap-1.5 text-left">
+                          {atts.map((att, idx) => (
+                            <ChatFileAttachment
+                              key={`${att.url}-${idx}`}
+                              file={att}
+                              mine={mine}
+                              onPreview={handleOpenPreview}
+                            />
+                          ))}
+                        </div>
+                      )}
+                      <div className="mt-0.5 flex items-center justify-end gap-0.5">
+                        <span className="text-[10px] leading-none text-black/45 dark:text-white/55">
+                          {format(new Date(m.createdAt), "h:mm a")}
+                        </span>
+                        {mine && <CheckCheck className="h-3.5 w-3.5 text-black/40 dark:text-white/55" />}
                       </div>
                     </div>
                   </div>
@@ -330,11 +342,10 @@ export function ChatWorkspace({
         </div>
       </ScrollArea>
 
-      <div className="shrink-0 border-t border-border/60 bg-background px-4 py-3 sm:px-5">
+      <div className="shrink-0 bg-[#efeae2] px-2 pt-1.5 pb-[max(0.4rem,env(safe-area-inset-bottom))] dark:bg-[#0b141a] sm:px-3">
         <div className="mx-auto w-full max-w-3xl">
-          {/* Multiple Pending Files List */}
           {pendingFiles.length > 0 && (
-            <div className="mb-2.5 flex flex-wrap gap-2 max-h-36 overflow-y-auto p-1.5 rounded-xl border border-border/70 bg-muted/40">
+            <div className="mb-1.5 flex max-h-36 flex-wrap gap-2 overflow-y-auto rounded-xl bg-white/80 p-1.5 dark:bg-[#202c33]">
               {pendingFiles.map((f, idx) => (
                 <ChatFileAttachment
                   key={`${f.url}-${idx}`}
@@ -346,15 +357,14 @@ export function ChatWorkspace({
             </div>
           )}
 
-          {/* Upload Progress Indicator */}
           {uploading && (
-            <div className="mb-2 flex items-center gap-2 text-xs font-medium text-muted-foreground animate-pulse">
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+            <div className="mb-1.5 flex items-center gap-2 px-1 text-xs font-medium text-[#54656f] animate-pulse">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-[#00a884]" />
               <span>{uploadProgressText || "Uploading files..."}</span>
             </div>
           )}
 
-          <div className="flex items-end gap-2 rounded-2xl border border-border bg-muted/30 px-2 py-1.5">
+          <div className="flex items-end gap-1.5">
             <input
               ref={fileInputRef}
               type="file"
@@ -363,43 +373,44 @@ export function ChatWorkspace({
               accept="image/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.txt,.zip,.rar"
               onChange={(e) => void onPickFiles(e.target.files)}
             />
-            <Button
+            <div className="flex min-h-[46px] flex-1 items-end rounded-3xl bg-white px-1.5 py-1 dark:bg-[#2a3942]">
+              <button
+                type="button"
+                className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#54656f] disabled:opacity-40 dark:text-[#8696a0]"
+                disabled={uploading}
+                onClick={() => fileInputRef.current?.click()}
+                title="Attach files"
+                aria-label="Attach files"
+              >
+                <Paperclip className="h-[18px] w-[18px]" />
+              </button>
+              <textarea
+                ref={composerRef}
+                value={draft}
+                rows={1}
+                placeholder="Message"
+                className="max-h-[140px] min-h-[36px] flex-1 resize-none bg-transparent py-2 text-[15px] leading-5 text-[#111b21] outline-none placeholder:text-[#667781] dark:text-[#e9edef]"
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey && !coarse) {
+                    e.preventDefault();
+                    void handleSend();
+                  }
+                }}
+              />
+            </div>
+            <button
               type="button"
-              variant="ghost"
-              size="icon"
-              className="mb-0.5 h-9 w-9 shrink-0 rounded-full"
-              disabled={uploading}
-              onClick={() => fileInputRef.current?.click()}
-              title="Attach files (supports multiple documents/PDFs)"
-            >
-              <Paperclip className="h-4 w-4" />
-            </Button>
-            <textarea
-              ref={composerRef}
-              value={draft}
-              rows={1}
-              placeholder={`Message ${isGeneral ? "General" : roomTitle}`}
-              className="max-h-[140px] min-h-[40px] flex-1 resize-none bg-transparent py-2.5 text-sm leading-5 outline-none placeholder:text-muted-foreground"
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  void handleSend();
-                }
-              }}
-            />
-            <Button
-              type="button"
-              size="icon"
-              className="mb-0.5 h-9 w-9 shrink-0 rounded-full"
+              className="mb-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#00a884] text-white disabled:opacity-40"
               disabled={!canSend}
               onClick={() => void handleSend()}
               title="Send"
+              aria-label="Send"
             >
-              <SendHorizontal className="h-4 w-4" />
-            </Button>
+              <SendHorizontal className="h-5 w-5" />
+            </button>
           </div>
-          <p className="mt-1.5 px-1 text-[11px] text-muted-foreground">Enter to send · Shift+Enter for a new line</p>
+          <p className="mt-1 hidden px-1 text-[11px] text-[#667781] md:block">Enter to send · Shift+Enter for a new line</p>
         </div>
       </div>
 

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-server";
 import { getCachedTeamDirectory } from "@/lib/server/cached-team";
+import { getChatInboxPreviews, inboxRoomKeys } from "@/actions/chat/inbox";
 import { dmRoomKey, GENERAL_CHAT_ROOM, parseRoomKey } from "@/lib/chat/room-keys";
 import { dmMeetRoomSuffix, teamRoomName } from "@/lib/jitsi/meet-url";
 import { ChatShell } from "./components/ChatShell";
@@ -36,6 +37,9 @@ export default async function ChatPage({
       ? teamRoomName("general")
       : teamRoomName("dm", dmMeetRoomSuffix(roomKey));
 
+  const previews = await getChatInboxPreviews(inboxRoomKeys(userId, team.map((m) => m.id)));
+  const mobileHome = !params.userId && !params.room && params.call !== "1";
+
   return (
     <ChatShell
       team={team}
@@ -46,6 +50,8 @@ export default async function ChatPage({
       meetRoom={meetRoom}
       initialCallOpen={params.call === "1"}
       initialDraft={params.draft ? decodeURIComponent(params.draft) : undefined}
+      previews={previews}
+      mobileHome={mobileHome}
     />
   );
 }
