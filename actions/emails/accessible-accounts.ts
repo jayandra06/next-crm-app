@@ -62,6 +62,21 @@ async function loadAccessibleAccounts(
   });
 }
 
+/** Own mailbox first, and the one matching the login address before any other mailbox you own. */
+function sortMailboxesForViewer(accounts: AccessibleEmailAccount[], identityEmails: string[]) {
+  const mine = new Set(identityEmails.map((email) => email.trim().toLowerCase()).filter(Boolean));
+  const rank = (account: AccessibleEmailAccount) => {
+    const address = account.username.trim().toLowerCase();
+    if (account.accessKind === "owner" && mine.has(address)) return 0;
+    if (account.accessKind === "owner") return 1;
+    if (account.accessKind === "delegate") return 2;
+    return 3;
+  };
+  return [...accounts].sort(
+    (a, b) => rank(a) - rank(b) || a.username.localeCompare(b.username)
+  );
+}
+
 const cachedAccountsForUser = unstable_cache(
   async (userId: string, elevated: boolean) => loadAccessibleAccounts(userId, elevated),
   ["accessible-email-accounts-v3"],
@@ -82,5 +97,12 @@ export async function getAccessibleEmailAccounts(): Promise<AccessibleEmailAccou
     if (!(e instanceof AuthorizationError)) throw e;
   }
 
-  return serializeDecimalsList(await cachedAccountsForUser(userId, elevated));
+  const list = await cachedAccountsForUser(userId, elevated);
+  const me = await prismadb.users.findUnique({
+    where: { id: userId },
+    select: { email: true, workEmail: true },
+  });
+  return serializeDecimalsList(
+    sortMailboxesForViewer(list, [me?.email ?? "", me?.workEmail ?? "", session.user.email ?? ""])
+  );
 }
