@@ -112,7 +112,9 @@ export async function findResendMailboxesForRecipients(
 ): Promise<ResendMailboxMatch[]> {
   if (recipientAddresses.length === 0) return [];
 
-  const wantedList = [...new Set(recipientAddresses.map((r) => normalizeEmailAddress(r)).filter(Boolean))];
+  const wantedList = Array.from(
+    new Set(recipientAddresses.map((r) => normalizeEmailAddress(r)).filter((address) => address.length > 0))
+  );
   const wanted = new Set(wantedList);
   const accountSelect = {
     id: true,
