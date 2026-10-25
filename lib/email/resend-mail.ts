@@ -13,7 +13,7 @@ export type ResendSendPayload = {
   replyTo?: string;
   inReplyTo?: string;
   references?: string;
-  attachments?: Array<{ filename: string; content: Buffer; contentType?: string }>;
+  attachments?: Array<{ filename: string; content: Buffer; contentType?: string; cid?: string }>;
 };
 
 export function formatResendFromAddress(payload: {
@@ -58,7 +58,8 @@ export async function sendMailViaResend(payload: ResendSendPayload) {
     attachments: payload.attachments?.map((a) => ({
       filename: a.filename,
       content: a.content,
-      content_type: a.contentType,
+      contentType: a.contentType,
+      contentId: a.cid,
     })),
   });
 

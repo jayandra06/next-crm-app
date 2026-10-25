@@ -111,7 +111,7 @@ export function UserSearchField({
       )}
       {searched && results.length === 0 && !searching && (
         <p className="rounded-md border border-dashed px-3 py-2 text-sm text-muted-foreground">
-          No active user matches that name or email. They need a CRM account before you can share this mailbox.
+          Nobody in this organization uses that email. They need an active login here before you can delegate this mailbox.
         </p>
       )}
       {results.length > 0 && (

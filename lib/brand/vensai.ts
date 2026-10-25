@@ -47,8 +47,13 @@ export function getDefaultEmailSignaturePlain(senderName?: string): string {
 export function getDefaultEmailSignatureHtml(senderName?: string): string {
   const name = senderName?.trim() || "VenSai Labs Team";
   const { companyName, tagline, website, colors } = VENSAI_BRAND;
-  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:24px;font-family:${VENSAI_BRAND.email.fontFamily};">
-<tr><td style="padding-top:16px;border-top:1px solid ${colors.border};">
+  const logo = getBrandLogoUrl();
+  return `<table role="presentation" data-crm-signature="1" cellpadding="0" cellspacing="0" border="0" style="margin-top:24px;font-family:${VENSAI_BRAND.email.fontFamily};">
+<tr>
+<td style="padding:16px 14px 0 0;border-top:1px solid ${colors.border};vertical-align:top;">
+<img src="${logo}" alt="${companyName}" width="72" height="72" style="display:block;width:72px;height:72px;object-fit:cover;border-radius:8px;border:0;" />
+</td>
+<td style="padding-top:16px;border-top:1px solid ${colors.border};vertical-align:top;">
 <p style="margin:0 0 4px;font-size:14px;font-weight:600;color:${colors.navy};">${name}</p>
 <p style="margin:0 0 2px;font-size:13px;color:${colors.text};">${companyName}</p>
 <p style="margin:0 0 8px;font-size:12px;color:${colors.muted};">${tagline}</p>

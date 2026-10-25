@@ -27,6 +27,7 @@ import {
   ArrowUpRight,
   Clock,
   Info,
+  ImagePlus,
   Mail,
   MoreHorizontal,
   Plus,
@@ -56,6 +57,7 @@ import type { getAdminEmailAccounts } from "@/actions/admin/email-accounts";
 import type { MailboxDelegate } from "@/actions/emails/delegates";
 import { MailboxExternalSetupPanel } from "./MailboxExternalSetupPanel";
 import { MailboxShareDialog } from "./MailboxShareDialog";
+import { MailboxSignatureDialog } from "./MailboxSignatureDialog";
 import { UserSearchField } from "./UserSearchField";
 
 type ProfileAccount = Awaited<ReturnType<typeof getEmailAccounts>>[number];
@@ -89,6 +91,7 @@ export function EmailAccountsList(props: EmailAccountsListProps) {
   const [form, setForm] = useState({ label: "", fromName: "", username: "" });
   const [assignUser, setAssignUser] = useState<MailboxDelegate | null>(null);
   const [shareTarget, setShareTarget] = useState<ShareTarget | null>(null);
+  const [signatureAccount, setSignatureAccount] = useState<ProfileAccount | AdminAccount | null>(null);
 
   const refresh = () => router.refresh();
   const resendAccounts = accounts.filter((a) => a.sendProvider === EmailSendProvider.RESEND);
@@ -255,7 +258,13 @@ export function EmailAccountsList(props: EmailAccountsListProps) {
               {!legacy && (
                 <Button type="button" variant="outline" className="gap-2" onClick={() => openShare(acc)}>
                   <UserPlus className="h-4 w-4" />
-                  Share
+                  Delegate
+                </Button>
+              )}
+              {!legacy && (
+                <Button type="button" variant="outline" className="gap-2" onClick={() => setSignatureAccount(acc)}>
+                  <ImagePlus className="h-4 w-4" />
+                  Signature
                 </Button>
               )}
               <DropdownMenu>
@@ -272,7 +281,13 @@ export function EmailAccountsList(props: EmailAccountsListProps) {
                 {!legacy && (
                   <DropdownMenuItem onClick={() => openShare(acc)}>
                     <UserPlus className="mr-2 h-4 w-4" />
-                    Share access
+                    Delegate access
+                  </DropdownMenuItem>
+                )}
+                {!legacy && (
+                  <DropdownMenuItem onClick={() => setSignatureAccount(acc)}>
+                    <ImagePlus className="mr-2 h-4 w-4" />
+                    Email signature
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
@@ -302,7 +317,7 @@ export function EmailAccountsList(props: EmailAccountsListProps) {
           <p className="text-sm text-muted-foreground">
             {isAdmin
               ? "Create a mailbox, then share it by searching a person's name or email. They can read that inbox and send from it."
-              : "Share a mailbox with a teammate, manager, or anyone else by searching their name or email."}
+              : "On each mailbox, open Delegate and type a teammate's email. Only people who already log into this organization can be added."}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -345,6 +360,18 @@ export function EmailAccountsList(props: EmailAccountsListProps) {
           {resendAccounts.map((acc) => renderMailboxCard(acc, false))}
           {legacyAccounts.map((acc) => renderMailboxCard(acc, true))}
         </ul>
+      )}
+
+      {signatureAccount && (
+        <MailboxSignatureDialog
+          key={signatureAccount.id}
+          open
+          onOpenChange={(next) => {
+            if (!next) setSignatureAccount(null);
+          }}
+          account={signatureAccount}
+          onSaved={refresh}
+        />
       )}
 
       {shareTarget && (

@@ -10,6 +10,8 @@ import { EmailFolder, EmailSendProvider } from "@prisma/client";
 import { sendMailViaResend } from "@/lib/email/resend-mail";
 import { resolveMailboxAccess } from "@/lib/email/mailbox-access";
 import { fetchUploadBuffer } from "@/lib/email/fetch-upload-buffer";
+import { plainTextToComposeHtml } from "@/lib/email/compose-helpers";
+import { buildEmailSignature, SIGNATURE_CID } from "@/lib/email/signature";
 import { inngest } from "@/inngest/client";
 import { revalidatePath } from "next/cache";
 import { invalidateMailboxCache } from "@/lib/email/mailbox-cache";
@@ -169,9 +171,49 @@ export async function sendEmail(input: SendInput) {
             filename: a.name,
             content: await fetchUploadBuffer(a.url),
             contentType: a.mime,
+            cid: undefined as string | undefined,
           }))
         )
-      : undefined;
+      : [];
+
+  const customSignatureImage = account.signatureImageUrl?.trim() || null;
+  let signatureImageSrc: string | null = null;
+  if (customSignatureImage) {
+    try {
+      const content = await fetchUploadBuffer(customSignatureImage);
+      const lower = customSignatureImage.toLowerCase();
+      const contentType = lower.includes(".png")
+        ? "image/png"
+        : lower.includes(".webp")
+          ? "image/webp"
+          : lower.includes(".gif")
+            ? "image/gif"
+            : "image/jpeg";
+      const extension = contentType.split("/")[1] === "jpeg" ? "jpg" : contentType.split("/")[1];
+      attachmentBuffers.push({
+        filename: `signature.${extension}`,
+        content,
+        contentType,
+        cid: SIGNATURE_CID,
+      });
+      signatureImageSrc = `cid:${SIGNATURE_CID}`;
+    } catch (error) {
+      console.error("[sendEmail] Could not attach signature image:", error);
+    }
+  }
+
+  const signature = buildEmailSignature({
+    senderName: account.fromName || account.label,
+    customText: account.signatureText,
+    imageUrl: customSignatureImage,
+    imageSrc: signatureImageSrc,
+  });
+  let html = input.bodyHtml?.trim() ? input.bodyHtml : plainTextToComposeHtml(input.body || "");
+  let text = input.body || "";
+  if (!html.includes("data-crm-signature")) {
+    html = `${html}${signature.html}`;
+    text = `${text}\n\n${signature.plain}`.trim();
+  }
 
   let rfcMessageId: string;
 
@@ -184,11 +226,11 @@ export async function sendEmail(input: SendInput) {
       cc: input.cc,
       bcc: input.bcc,
       subject: input.subject,
-      text: input.body,
-      html: input.bodyHtml,
+      text,
+      html,
       inReplyTo: input.inReplyTo,
       references: input.references,
-      attachments: attachmentBuffers,
+      attachments: attachmentBuffers.length ? attachmentBuffers : undefined,
     });
     rfcMessageId = sent?.id ? `resend-${sent.id}` : `local-${crypto.randomUUID()}@nextcrm`;
   } else {
@@ -222,15 +264,18 @@ export async function sendEmail(input: SendInput) {
       cc: input.cc?.join(", "),
       bcc: input.bcc?.join(", "),
       subject: input.subject,
-      text: input.body,
-      html: input.bodyHtml,
+      text,
+      html,
       inReplyTo: input.inReplyTo,
       references: input.references,
-      attachments: attachmentBuffers?.map((a) => ({
-        filename: a.filename,
-        content: a.content,
-        contentType: a.contentType,
-      })),
+      attachments: attachmentBuffers.length
+        ? attachmentBuffers.map((a) => ({
+            filename: a.filename,
+            content: a.content,
+            contentType: a.contentType,
+            cid: a.cid,
+          }))
+        : undefined,
     });
     rfcMessageId = info.messageId ?? `local-${crypto.randomUUID()}@nextcrm`;
   }
@@ -248,8 +293,8 @@ export async function sendEmail(input: SendInput) {
       toRecipients: input.to.map((e) => ({ email: e })),
       ccRecipients: input.cc?.map((e) => ({ email: e })) ?? [],
       bccRecipients: input.bcc?.map((e) => ({ email: e })) ?? [],
-      bodyText: input.body,
-      bodyHtml: input.bodyHtml ?? null,
+      bodyText: text,
+      bodyHtml: html,
       attachments:
         input.attachments?.map((a) => ({
           url: a.url,

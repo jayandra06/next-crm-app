@@ -41,6 +41,8 @@ export async function getAdminEmailAccounts() {
       lastSyncedAt: true,
       createdAt: true,
       delegateUserIds: true,
+      signatureText: true,
+      signatureImageUrl: true,
       user: {
         select: { id: true, email: true, name: true },
       },

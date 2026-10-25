@@ -36,7 +36,7 @@ import {
 } from "@/lib/email/compose-helpers";
 import { EmailAiWriter } from "@/components/email/EmailAiWriter";
 import type { MailboxComposeMode } from "@/lib/llm/quality-modes";
-import { getDefaultEmailSignatureHtml } from "@/lib/brand/vensai";
+import { buildEmailSignature } from "@/lib/email/signature";
 
 type Mode = "new" | "reply" | "reply-all" | "forward";
 
@@ -193,8 +193,7 @@ export const ComposeModal = forwardRef<HTMLDivElement, Props>(function ComposeMo
       quotePlainRef.current.trim().length > 0
         ? plainTextToComposeHtml(`\n\n${quotePlainRef.current}`)
         : "";
-    const signatureHtml = mode === "new" ? getDefaultEmailSignatureHtml() : "";
-    const mergedHtml = `${result.html}${signatureHtml}${quoteHtml}`;
+    const mergedHtml = `${result.html}${quoteHtml}`;
     setBodyHtml(mergedHtml);
     setBody(stripHtmlToPlain(mergedHtml));
   }
@@ -223,6 +222,12 @@ export const ComposeModal = forwardRef<HTMLDivElement, Props>(function ComposeMo
       setSending(false);
     }
   }
+
+  const signaturePreview = buildEmailSignature({
+    senderName: sendFromAccount?.fromName || sendFromAccount?.label,
+    customText: sendFromAccount?.signatureText,
+    imageUrl: sendFromAccount?.signatureImageUrl,
+  });
 
   const needsSource = mode !== "new";
   const sourceReady = !needsSource || Boolean(replyTo?.fromEmail && (replyTo.bodyText || replyTo.bodyHtml || replyTo.subject));
@@ -326,6 +331,12 @@ export const ComposeModal = forwardRef<HTMLDivElement, Props>(function ComposeMo
                   setBody(plain);
                 }}
               />
+              <div className="rounded-lg border border-dashed bg-white px-3 py-2">
+                <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                  Signature added when this is sent
+                </p>
+                <div dangerouslySetInnerHTML={{ __html: signaturePreview.html }} />
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Attachments</Label>

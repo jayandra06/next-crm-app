@@ -46,6 +46,8 @@ export async function getEmailAccounts() {
         createdAt: true,
         delegateUserIds: true,
         userId: true,
+        signatureText: true,
+        signatureImageUrl: true,
       },
       orderBy: { createdAt: "asc" },
     });

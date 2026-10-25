@@ -29,6 +29,11 @@ export type ConnectedAccount = {
   label: string;
   username: string;
   accessKind?: "owner" | "delegate" | "admin";
+  ownerId?: string | null;
   ownerName?: string | null;
   ownerEmail?: string | null;
+  delegates?: { id: string; name: string; email: string; workEmail: string | null }[];
+  fromName?: string | null;
+  signatureText?: string | null;
+  signatureImageUrl?: string | null;
 };

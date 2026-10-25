@@ -23,7 +23,7 @@ async function mailboxForDelegateEdit(accountId: string) {
     select: { id: true, userId: true, username: true, label: true, delegateUserIds: true },
   });
   if (!account) throw new Error("Mailbox not found");
-  if (account.userId === actor.id) return account;
+  if (account.userId.trim().toLowerCase() === actor.id.trim().toLowerCase()) return account;
   try {
     await requireRole(["admin"]);
     return account;
@@ -68,13 +68,15 @@ export async function addMailboxDelegate(accountId: string, userId: string): Pro
   const account = await mailboxForDelegateEdit(accountId);
   const personId = userId.trim();
   if (!personId) throw new Error("Choose a person");
-  if (personId === account.userId) throw new Error("The mailbox owner already has access");
+  if (personId.trim().toLowerCase() === account.userId.trim().toLowerCase()) {
+    throw new Error("The mailbox owner already has access");
+  }
 
   const person = await prismadb.users.findFirst({
     where: { id: personId, userStatus: "ACTIVE", banned: false },
     select: { id: true },
   });
-  if (!person) throw new Error("That person is not an active CRM user");
+  if (!person) throw new Error("That person is not an active user in this organization");
 
   const next = Array.from(new Set([...(account.delegateUserIds ?? []), person.id]));
   await prismadb.emailAccount.update({

@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth-server";
 import { requireRole, AuthorizationError } from "@/lib/authz";
 import { prismadb } from "@/lib/prisma";
 import { serializeDecimalsList } from "@/lib/serialize-decimals";
+import { loadMailboxDelegates, type MailboxDelegate } from "@/lib/email/mailbox-delegates";
 import type { MailboxAccessKind } from "@/lib/email/mailbox-access";
 
 export type AccessibleEmailAccount = {
@@ -15,8 +16,10 @@ export type AccessibleEmailAccount = {
   signatureText: string | null;
   signatureImageUrl: string | null;
   accessKind: MailboxAccessKind;
+  ownerId: string;
   ownerName: string | null;
   ownerEmail: string | null;
+  delegates: MailboxDelegate[];
 };
 
 const accountSelect = {
@@ -48,10 +51,15 @@ async function loadAccessibleAccounts(
       : { createdAt: "asc" },
   });
 
+  const people = await loadMailboxDelegates(rows.flatMap((row) => row.delegateUserIds));
+  const peopleById = new Map(people.map((person) => [person.id, person]));
+  const viewerId = userId.trim().toLowerCase();
+
   return rows.map((a) => {
+    const delegated = a.delegateUserIds.some((id) => id.trim().toLowerCase() === viewerId);
     let accessKind: MailboxAccessKind = "delegate";
-    if (a.userId.trim().toLowerCase() === userId.trim().toLowerCase()) accessKind = "owner";
-    else if (a.delegateUserIds.includes(userId)) accessKind = "delegate";
+    if (a.userId.trim().toLowerCase() === viewerId) accessKind = "owner";
+    else if (delegated) accessKind = "delegate";
     else if (elevated) accessKind = "admin";
 
     return {
@@ -62,8 +70,13 @@ async function loadAccessibleAccounts(
       signatureText: a.signatureText,
       signatureImageUrl: a.signatureImageUrl,
       accessKind,
+      ownerId: a.userId,
       ownerName: a.user.name,
       ownerEmail: a.user.email,
+      delegates: a.delegateUserIds.flatMap((id) => {
+        const person = peopleById.get(id);
+        return person ? [person] : [];
+      }),
     };
   });
 }
@@ -85,7 +98,7 @@ function sortMailboxesForViewer(accounts: AccessibleEmailAccount[], identityEmai
 
 const cachedAccountsForUser = unstable_cache(
   async (userId: string, elevated: boolean) => loadAccessibleAccounts(userId, elevated),
-  ["accessible-email-accounts-v4"],
+  ["accessible-email-accounts-v5"],
   { revalidate: 120, tags: ["accessible-email-accounts"] }
 );
 

@@ -1592,6 +1592,10 @@ model EmailAccount {
   delegateUserIds   String[]  @default([]) @db.Uuid
   isActive          Boolean   @default(true)
   sentFolderName    String    @default("Sent")
+  /// Plain lines shown under the sender name. Empty uses the company signature.
+  signatureText     String?   @db.Text
+  /// Uploaded logo or photo. Empty uses the VenSai Labs logo.
+  signatureImageUrl String?
   lastSyncedAt      DateTime?
   inboxLastUid      Int?
   sentLastUid       Int?

@@ -66,11 +66,11 @@ export function MailboxShareDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Share {account.label}</DialogTitle>
+          <DialogTitle>Delegate access</DialogTitle>
           <DialogDescription>
-            {account.ownerName ? `${account.ownerName}'s mailbox · ` : ""}
-            {account.username}. People you add can read this inbox and send from this address. They
-            cannot delete the mailbox or change its settings.
+            {account.label} · {account.username}. Type the email of someone who already logs into
+            this organization. They can read this inbox and send from this address. They cannot
+            delete the mailbox or change who else has access.
           </DialogDescription>
         </DialogHeader>
 
@@ -78,7 +78,7 @@ export function MailboxShareDialog({
           excludeIds={[...delegates.map((person) => person.id), ...(ownerId ? [ownerId] : [])]}
           disabled={busyId !== null}
           onPick={(person) => void add(person)}
-          placeholder="Type a name or email, then pick the person"
+          placeholder="Type their email in this organization"
         />
 
         <div className="space-y-2">

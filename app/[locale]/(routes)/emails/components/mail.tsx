@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 import { AccountSwitcher } from "@/app/[locale]/(routes)/emails/components/account-switcher";
+import { DelegateAccessButton } from "@/app/[locale]/(routes)/emails/components/DelegateAccessButton";
 import { ComposeModal } from "@/app/[locale]/(routes)/emails/components/ComposeModal";
 import { MailDisplay } from "@/app/[locale]/(routes)/emails/components/mail-display";
 import { MailList } from "@/app/[locale]/(routes)/emails/components/mail-list";
@@ -101,8 +102,8 @@ export function MailComponent({
     }),
     [defaultLayout]
   );
-  const activeMailboxAddress =
-    accounts.find((a) => a.id === activeAccountId)?.username ?? "";
+  const activeAccount = accounts.find((a) => a.id === activeAccountId);
+  const activeMailboxAddress = activeAccount?.username ?? "";
 
   const listFilter = searchParams.get("filter") === "unread" ? "unread" : "all";
   const [localMails, setLocalMails] = React.useState(mails);
@@ -274,6 +275,7 @@ export function MailComponent({
         <div className="min-w-0 flex-1">
           <AccountSwitcher accounts={accounts} activeAccountId={activeAccountId} />
         </div>
+        <DelegateAccessButton account={activeAccount} compact />
       </div>
       <div className="flex shrink-0 gap-1 overflow-x-auto px-2 py-1.5 lg:hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {navLinks.map((link) => (
@@ -408,6 +410,7 @@ export function MailComponent({
               View as
             </p>
             <AccountSwitcher accounts={accounts} activeAccountId={activeAccountId} />
+            <DelegateAccessButton account={activeAccount} />
           </div>
           <Separator className="opacity-50" />
           {activeAccountId && (
