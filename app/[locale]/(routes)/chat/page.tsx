@@ -11,10 +11,13 @@ export default async function ChatPage({
 }: {
   searchParams: Promise<{ room?: string; userId?: string; call?: string; draft?: string }>;
 }) {
-  const session = await getSession();
+  const [session, params, team] = await Promise.all([
+    getSession(),
+    searchParams,
+    getCachedTeamDirectory(),
+  ]);
   if (!session?.user?.id) redirect("/sign-in");
 
-  const params = await searchParams;
   const userId = session.user.id as string;
   let roomKey = parseRoomKey(params.room);
 
@@ -22,7 +25,6 @@ export default async function ChatPage({
     roomKey = dmRoomKey(userId, params.userId);
   }
 
-  const team = await getCachedTeamDirectory();
   const displayName = session.user.name?.trim() || session.user.email || "User";
 
   const roomTitle =

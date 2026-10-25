@@ -20,8 +20,13 @@ import { markChatRoomRead } from "@/actions/chat/unread";
 import { avatarGradientClass, initials } from "@/lib/chat/avatar-style";
 import { uploadChatFile } from "@/lib/chat/upload-file";
 import { cn } from "@/lib/utils";
+import dynamic from "next/dynamic";
 import { ChatFileAttachment } from "./ChatFileAttachment";
-import { ChatFilePreviewModal } from "./ChatFilePreviewModal";
+
+const ChatFilePreviewModal = dynamic(
+  () => import("./ChatFilePreviewModal").then((m) => m.ChatFilePreviewModal),
+  { ssr: false }
+);
 
 type Props = {
   roomKey: string;

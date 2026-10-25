@@ -25,29 +25,40 @@ const emptyEmailsResult: EmailsListResult = {
   view: "inbox",
 };
 
-const EmailRoute = async ({
-  searchParams,
-}: {
-  searchParams: Promise<{
-    accountId?: string;
-    box?: string;
-    folder?: string;
-    search?: string;
-    page?: string;
-    filter?: string;
-  }>;
-}) => {
-  const session = await getSession();
+type EmailSearchParams = {
+  accountId?: string;
+  box?: string;
+  folder?: string;
+  search?: string;
+  page?: string;
+  filter?: string;
+};
 
-  if (!session) {
-    redirect("/");
+async function loadConnectedAccounts() {
+  try {
+    return await getAccessibleEmailAccounts();
+  } catch (error) {
+    console.error("[EmailRoute] Failed to load email accounts:", error);
+    return [];
   }
+}
 
-  const t = await getTranslations("ModuleMenu");
-  const params = await searchParams;
+async function EmailMailbox({
+  searchParams,
+  isAdmin,
+}: {
+  searchParams: Promise<EmailSearchParams>;
+  isAdmin: boolean;
+}) {
+  const [t, params, cookieStore, connectedAccounts] = await Promise.all([
+    getTranslations("ModuleMenu"),
+    searchParams,
+    cookies(),
+    loadConnectedAccounts(),
+  ]);
 
-  const layoutMail = (await cookies()).get("react-resizable-panels:layout:mail");
-  const layoutLegacy = (await cookies()).get("react-resizable-panels:layout");
+  const layoutMail = cookieStore.get("react-resizable-panels:layout:mail");
+  const layoutLegacy = cookieStore.get("react-resizable-panels:layout");
 
   const FALLBACK_LAYOUT = [38, 62];
   let validatedLayout: number[] | undefined;
@@ -87,14 +98,6 @@ const EmailRoute = async ({
     }
   }
 
-  let connectedAccounts: any[] = [];
-  try {
-    connectedAccounts = await getAccessibleEmailAccounts();
-  } catch (error) {
-    console.error("[EmailRoute] Failed to load email accounts:", error);
-    connectedAccounts = [];
-  }
-
   if (!connectedAccounts || connectedAccounts.length === 0) {
     return (
       <Container title={t("emails")} description="Your connected mailboxes">
@@ -125,7 +128,7 @@ const EmailRoute = async ({
                   Profile → Email accounts
                 </Link>
               </Button>
-              {session.user.role === "admin" && (
+              {isAdmin && (
                 <Button asChild variant="secondary">
                   <Link href="/admin/email-accounts">Admin → Email mailboxes</Link>
                 </Button>
@@ -196,6 +199,30 @@ const EmailRoute = async ({
       </Suspense>
       </div>
     </div>
+  );
+}
+
+const EmailRoute = async ({
+  searchParams,
+}: {
+  searchParams: Promise<EmailSearchParams>;
+}) => {
+  const session = await getSession();
+
+  if (!session) {
+    redirect("/");
+  }
+
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+          <EmailsSkeleton />
+        </div>
+      }
+    >
+      <EmailMailbox searchParams={searchParams} isAdmin={session.user.role === "admin"} />
+    </Suspense>
   );
 };
 
