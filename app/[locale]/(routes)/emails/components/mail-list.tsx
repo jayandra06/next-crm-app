@@ -96,19 +96,26 @@ export function MailList({
   return (
     <div className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] overflow-hidden">
       <div className="min-h-0 overflow-y-auto overscroll-contain">
-        <div className="flex flex-col gap-0.5 p-2 pr-3">
+        <div className="flex flex-col">
           {items.length === 0 && (
             <p className="px-2 py-8 text-center text-sm text-muted-foreground">No messages</p>
           )}
-          {items.map((item) => (
+          {items.map((item) => {
+            const who = item.fromName ?? item.fromEmail ?? "?";
+            const initials = who
+              .split(/\s+/)
+              .slice(0, 2)
+              .map((part) => part[0]?.toUpperCase() ?? "")
+              .join("");
+            return (
             <div
               key={item.id}
               role="button"
               tabIndex={0}
               className={cn(
-                "flex gap-2 rounded-lg border border-transparent px-2.5 py-2.5 text-left text-sm transition-colors hover:bg-muted/50",
-                mail.selected === item.id && "border-primary/20 bg-primary/[0.07] shadow-sm",
-                !item.isRead && mail.selected !== item.id && "bg-background/80 font-medium"
+                "flex items-start gap-3 border-b border-border/40 px-3 py-3 text-left text-sm transition-colors active:bg-muted/60 lg:gap-2 lg:rounded-lg lg:border lg:border-transparent lg:px-2.5 lg:py-2.5",
+                mail.selected === item.id && "bg-primary/[0.06] lg:border-primary/20 lg:shadow-sm",
+                !item.isRead && mail.selected !== item.id && "bg-background"
               )}
               onClick={() => {
                 setMail({ ...mail, selected: item.id });
@@ -123,16 +130,22 @@ export function MailList({
                 }
               }}
             >
+              <div
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary lg:hidden"
+                aria-hidden
+              >
+                {initials || "?"}
+              </div>
               <Checkbox
                 checked={selectedIds.includes(item.id)}
                 onCheckedChange={() => toggleRow(item.id)}
                 onClick={(e) => e.stopPropagation()}
-                className="mt-1 shrink-0"
+                className="mt-1 hidden shrink-0 lg:flex"
                 aria-label={`Select ${item.subject ?? "message"}`}
               />
               <button
                 type="button"
-                className="mt-0.5 shrink-0 text-muted-foreground hover:text-amber-500"
+                className="mt-0.5 hidden shrink-0 text-muted-foreground hover:text-amber-500 lg:inline-flex"
                 onClick={(e) => toggleStar(e, item)}
                 aria-label={item.isStarred ? "Unstar" : "Star"}
               >
@@ -157,15 +170,16 @@ export function MailList({
                 </div>
                 <div
                   className={cn(
-                    "line-clamp-2 text-xs leading-snug text-muted-foreground break-words",
-                    !item.isRead && "font-medium text-foreground/90"
+                    "truncate text-[13px] leading-snug text-muted-foreground",
+                    !item.isRead && "font-medium text-foreground/80"
                   )}
                 >
                   {item.subject ?? "(no subject)"}
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
       <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border/40 bg-background px-3 py-2 shadow-[0_-1px_0_0_hsl(var(--border)/0.4)]">

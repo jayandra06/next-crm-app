@@ -112,18 +112,50 @@ export async function findResendMailboxesForRecipients(
 ): Promise<ResendMailboxMatch[]> {
   if (recipientAddresses.length === 0) return [];
 
-  const wanted = new Set(recipientAddresses.map((r) => normalizeEmailAddress(r)));
-  const accounts = await prismadb.emailAccount.findMany({
+  const wantedList = [...new Set(recipientAddresses.map((r) => normalizeEmailAddress(r)).filter(Boolean))];
+  const wanted = new Set(wantedList);
+  const accountSelect = {
+    id: true,
+    userId: true,
+    username: true,
+    user: { select: { workEmail: true, email: true } },
+  } as const;
+
+  // Match only the addresses on this message. Loading every mailbox made
+  // inbound slower each time a new mailbox was created.
+  let accounts = await prismadb.emailAccount.findMany({
     where: {
       isActive: true,
+      OR: [
+        { username: { in: wantedList, mode: "insensitive" } },
+        { user: { workEmail: { in: wantedList, mode: "insensitive" } } },
+        { user: { email: { in: wantedList, mode: "insensitive" } } },
+      ],
     },
-    select: {
-      id: true,
-      userId: true,
-      username: true,
-      user: { select: { workEmail: true, email: true } },
-    },
+    select: accountSelect,
   });
+
+  if (accounts.length === 0 && wantedList.some((addr) => addr.endsWith("@vensailabs.in"))) {
+    accounts = await prismadb.emailAccount.findMany({
+      where: {
+        isActive: true,
+        OR: [
+          { username: { startsWith: "ceo@", mode: "insensitive" } },
+          { username: { startsWith: "admin@", mode: "insensitive" } },
+        ],
+      },
+      select: accountSelect,
+      take: 5,
+    });
+    if (accounts.length === 0) {
+      const anyAccount = await prismadb.emailAccount.findFirst({
+        where: { isActive: true },
+        select: accountSelect,
+        orderBy: { createdAt: "asc" },
+      });
+      accounts = anyAccount ? [anyAccount] : [];
+    }
+  }
 
   const matches: ResendMailboxMatch[] = [];
   const seenAccountIds = new Set<string>();
@@ -366,16 +398,42 @@ export async function syncResendInbound(
   );
 
   let newMessagesCount = 0;
+  const mailboxCache = new Map<string, ResendMailboxMatch[]>();
 
   for (const item of items) {
     const cleanRfc = (item.message_id?.trim() || `resend-inbound-${item.id}`).replace(/^<|>$/g, "");
+    const fallbackRfc = `resend-inbound-${item.id}`;
     if (
       targetAccountId &&
       (existingSet.has(`${targetAccountId}:${cleanRfc}`) ||
-        existingSet.has(`${targetAccountId}:resend-inbound-${item.id}`))
+        existingSet.has(`${targetAccountId}:${fallbackRfc}`))
     ) {
       continue;
     }
+
+    const addresses = collectInboundRecipientAddresses({
+      id: item.id,
+      from: item.from ?? "",
+      to: item.to ?? [],
+      cc: item.cc,
+      bcc: item.bcc,
+      received_for: item.received_for,
+    });
+    const cacheKey = [...addresses].sort().join("|");
+    let mailboxes = mailboxCache.get(cacheKey);
+    if (!mailboxes) {
+      mailboxes = await findResendMailboxesForRecipients(addresses);
+      mailboxCache.set(cacheKey, mailboxes);
+    }
+
+    if (!targetAccountId && mailboxes.length === 0) continue;
+
+    const alreadyStored = !targetAccountId && mailboxes.every(
+      (mailbox) =>
+        existingSet.has(`${mailbox.id}:${cleanRfc}`) ||
+        existingSet.has(`${mailbox.id}:${fallbackRfc}`)
+    );
+    if (alreadyStored) continue;
 
     try {
       const result = await ingestResendInboundEmail(item.id, {

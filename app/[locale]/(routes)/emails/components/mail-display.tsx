@@ -172,21 +172,23 @@ export function MailDisplay({
       : undefined;
 
   return (
-    <div className="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-background">
-      <div className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-border/40 bg-background px-2 py-2 sm:px-3">
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background">
+      {onBack ? (
+        <div className="flex shrink-0 items-center border-b border-border/40 px-1 py-1 lg:hidden">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-9 gap-1 px-2 text-sm"
+            onClick={onBack}
+          >
+            <ChevronLeft className="h-5 w-5" />
+            Back
+          </Button>
+        </div>
+      ) : null}
+      <div className="order-last flex shrink-0 items-center gap-1 overflow-x-auto border-t border-border/40 bg-background px-2 py-2 sm:px-3 lg:order-none lg:border-b lg:border-t-0">
         <div className="flex min-w-0 shrink items-center gap-0.5">
-          {onBack && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="mr-1 h-8 gap-1 px-2 text-xs lg:hidden"
-              onClick={onBack}
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Inbox
-            </Button>
-          )}
           {mailboxView === "trash" ? (
             <>
               <Tooltip>
@@ -430,7 +432,7 @@ export function MailDisplay({
       </div>
 
       {mail ? (
-        <div className="flex min-h-0 flex-col overflow-hidden">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {fullEmail ? (
             <>
               <EmailMessageHeader
@@ -482,7 +484,7 @@ export function MailDisplay({
           )}
         </div>
       ) : (
-        <div className="flex min-h-0 flex-col items-center justify-center gap-2 p-8 text-center text-muted-foreground">
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 p-8 text-center text-muted-foreground">
           <MailOpen className="h-10 w-10 opacity-30" />
           <p className="text-sm">Select a message</p>
         </div>

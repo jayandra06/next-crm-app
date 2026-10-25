@@ -6,7 +6,7 @@ export const emailSyncAll = inngest.createFunction(
   {
     id: "email-sync-all",
     name: "Email: Sync All Accounts",
-    triggers: [{ cron: "*/5 * * * *" }],
+    triggers: [{ cron: "*/1 * * * *" }],
   },
   async ({ step }) => {
     // 1. Sync any new inbound emails directly from Resend

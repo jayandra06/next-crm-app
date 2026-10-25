@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { prismadb } from "@/lib/prisma";
 import { requireRole, AuthorizationError } from "@/lib/authz";
 import { serializeDecimalsList } from "@/lib/serialize-decimals";
@@ -8,6 +8,7 @@ import {
   createEmailAccountForUser,
   type CreateEmailAccountInput,
 } from "@/actions/emails/accounts";
+import { loadMailboxDelegates } from "@/lib/email/mailbox-delegates";
 import { inngest } from "@/inngest/client";
 
 async function requireAdmin() {
@@ -46,7 +47,17 @@ export async function getAdminEmailAccounts() {
     },
     orderBy: [{ user: { email: "asc" } }, { createdAt: "asc" }],
   });
-  return serializeDecimalsList(accounts);
+  const delegates = await loadMailboxDelegates(accounts.flatMap((a) => a.delegateUserIds));
+  const byId = new Map(delegates.map((person) => [person.id, person]));
+  return serializeDecimalsList(
+    accounts.map((account) => ({
+      ...account,
+      delegates: account.delegateUserIds.flatMap((id) => {
+        const person = byId.get(id);
+        return person ? [person] : [];
+      }),
+    }))
+  );
 }
 
 export async function getUsersForEmailAccountAssignment() {
@@ -99,7 +110,9 @@ export async function adminSetEmailAccountDelegates(accountId: string, delegateU
     where: { id: accountId },
     data: { delegateUserIds: unique },
   });
+  revalidateTag("accessible-email-accounts", "max");
   revalidatePath("/[locale]/(routes)/admin/email-accounts", "page");
+  revalidatePath("/emails");
 }
 
 export async function adminTriggerEmailSync(accountId: string) {

@@ -1,5 +1,6 @@
 "use server";
 
+import { after } from "next/server";
 import { getMailboxCounts, getMailboxEmails } from "@/actions/emails/mailbox-actions";
 import type { MailboxCounts } from "@/lib/email/mailbox-types";
 import type { MailboxEmailsResult } from "@/lib/email/mailbox-types";
@@ -17,21 +18,23 @@ export async function getMailboxPageData(
 ): Promise<{ emails: MailboxEmailsResult; counts: MailboxCounts }> {
   const view = parseMailboxView(viewRaw);
 
-  // Auto-sync incoming mail on inbox view if not synced in the last 60 seconds
+  // Pull new mail after the response. Waiting on Resend here held the inbox
+  // blank for the whole API round-trip on every first page load.
   if (view === "inbox" && page === 1 && !search) {
-    try {
-      const account = await prismadb.emailAccount.findUnique({
-        where: { id: accountId },
-        select: { lastSyncedAt: true },
-      });
-      const now = Date.now();
-      const lastSyncMs = account?.lastSyncedAt?.getTime() ?? 0;
-      if (now - lastSyncMs > 60_000) {
-        await syncResendInbound(accountId);
+    after(async () => {
+      try {
+        const account = await prismadb.emailAccount.findUnique({
+          where: { id: accountId },
+          select: { lastSyncedAt: true },
+        });
+        const lastSyncMs = account?.lastSyncedAt?.getTime() ?? 0;
+        if (Date.now() - lastSyncMs > 60_000) {
+          await syncResendInbound(accountId);
+        }
+      } catch (err) {
+        console.warn("[mailbox-page] Inbound auto-sync error:", err);
       }
-    } catch (err) {
-      console.warn("[mailbox-page] Inbound auto-sync error:", err);
-    }
+    });
   }
 
   const [emails, counts] = await Promise.all([

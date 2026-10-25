@@ -7,6 +7,7 @@ import { encrypt } from "@/lib/email-crypto";
 import resendHelper from "@/lib/resend";
 import { formatResendFromAddress } from "@/lib/email/resend-mail";
 import { serializeDecimalsList } from "@/lib/serialize-decimals";
+import { loadMailboxDelegates } from "@/lib/email/mailbox-delegates";
 import {
   isAllowedImapPort,
   isAllowedSmtpPort,
@@ -43,10 +44,22 @@ export async function getEmailAccounts() {
         sentFolderName: true,
         lastSyncedAt: true,
         createdAt: true,
+        delegateUserIds: true,
+        userId: true,
       },
       orderBy: { createdAt: "asc" },
     });
-    return serializeDecimalsList(accounts);
+    const delegates = await loadMailboxDelegates(accounts.flatMap((a) => a.delegateUserIds));
+    const byId = new Map(delegates.map((person) => [person.id, person]));
+    return serializeDecimalsList(
+      accounts.map((account) => ({
+        ...account,
+        delegates: account.delegateUserIds.flatMap((id) => {
+          const person = byId.get(id);
+          return person ? [person] : [];
+        }),
+      }))
+    );
   } catch (error) {
     console.error("[getEmailAccounts] Error:", error);
     return [];
