@@ -12,6 +12,8 @@ export type AccessibleEmailAccount = {
   label: string;
   username: string;
   fromName: string | null;
+  signatureText: string | null;
+  signatureImageUrl: string | null;
   accessKind: MailboxAccessKind;
   ownerName: string | null;
   ownerEmail: string | null;
@@ -22,6 +24,8 @@ const accountSelect = {
   label: true,
   username: true,
   fromName: true,
+  signatureText: true,
+  signatureImageUrl: true,
   userId: true,
   delegateUserIds: true,
   user: { select: { name: true, email: true } },
@@ -46,7 +50,7 @@ async function loadAccessibleAccounts(
 
   return rows.map((a) => {
     let accessKind: MailboxAccessKind = "delegate";
-    if (a.userId === userId) accessKind = "owner";
+    if (a.userId.trim().toLowerCase() === userId.trim().toLowerCase()) accessKind = "owner";
     else if (a.delegateUserIds.includes(userId)) accessKind = "delegate";
     else if (elevated) accessKind = "admin";
 
@@ -55,6 +59,8 @@ async function loadAccessibleAccounts(
       label: a.label,
       username: a.username,
       fromName: a.fromName,
+      signatureText: a.signatureText,
+      signatureImageUrl: a.signatureImageUrl,
       accessKind,
       ownerName: a.user.name,
       ownerEmail: a.user.email,
@@ -62,12 +68,12 @@ async function loadAccessibleAccounts(
   });
 }
 
-/** Own mailbox first, and the one matching the login address before any other mailbox you own. */
+/** The address you sign in with, or your work email, opens first — even on an admin account that can see every mailbox. */
 function sortMailboxesForViewer(accounts: AccessibleEmailAccount[], identityEmails: string[]) {
   const mine = new Set(identityEmails.map((email) => email.trim().toLowerCase()).filter(Boolean));
   const rank = (account: AccessibleEmailAccount) => {
     const address = account.username.trim().toLowerCase();
-    if (account.accessKind === "owner" && mine.has(address)) return 0;
+    if (mine.has(address)) return 0;
     if (account.accessKind === "owner") return 1;
     if (account.accessKind === "delegate") return 2;
     return 3;
@@ -79,7 +85,7 @@ function sortMailboxesForViewer(accounts: AccessibleEmailAccount[], identityEmai
 
 const cachedAccountsForUser = unstable_cache(
   async (userId: string, elevated: boolean) => loadAccessibleAccounts(userId, elevated),
-  ["accessible-email-accounts-v3"],
+  ["accessible-email-accounts-v4"],
   { revalidate: 120, tags: ["accessible-email-accounts"] }
 );
 

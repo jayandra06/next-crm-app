@@ -140,10 +140,7 @@ async function EmailMailbox({
     );
   }
 
-  const activeAccountId =
-    params.accountId ??
-    connectedAccounts.find((account) => account.accessKind === "owner")?.id ??
-    connectedAccounts[0]?.id;
+  const activeAccountId = params.accountId ?? connectedAccounts[0]?.id;
   const activeMailboxAddress =
     connectedAccounts.find((a) => a.id === activeAccountId)?.username ?? "";
   const mailboxView = parseMailboxView(
