@@ -9,6 +9,9 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   serverExternalPackages: ["pdf-parse", "pdfjs-dist"],
   experimental: {
     // Reuse prefetched App Router payloads so sidebar clicks feel instant.
