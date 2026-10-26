@@ -4,7 +4,6 @@ import { Archive, Inbox, PenLine, RefreshCw, Send, Settings, ShieldAlert, Star, 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { FeatureEmailSettingsButton } from "@/components/email/FeatureEmailSettingsButton";
 
 import { AccountSwitcher } from "@/app/[locale]/(routes)/emails/components/account-switcher";
 import { ComposeModal } from "@/app/[locale]/(routes)/emails/components/ComposeModal";
@@ -500,9 +499,6 @@ export function MailComponent({
             </TabsList>
           </Tabs>
         )}
-        <div className={cn("flex items-center gap-1", mailboxView !== "inbox" && "ml-auto")}>
-          <FeatureEmailSettingsButton feature="emails" size="icon" showLabel={false} />
-        </div>
       </div>
       <div className="shrink-0 px-3 pb-2 pt-2">
         <MailSearchBar />
@@ -612,7 +608,7 @@ export function MailComponent({
               size="sm"
               className="h-8 w-full justify-start gap-2 px-2 text-xs text-muted-foreground hover:text-foreground"
             >
-              <Link href="/emails/settings?feature=emails">
+              <Link href="/profile">
                 <Settings className="h-4 w-4 shrink-0" />
                 <span className="truncate">Email settings</span>
               </Link>
