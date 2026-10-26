@@ -31,12 +31,25 @@ export async function GET(req: NextRequest) {
 
   try {
     const data = await getMailboxPageData(accountId, view, page, search, unreadOnly);
-    return NextResponse.json(data, {
-      headers: {
-        "Cache-Control": "private, no-store",
+    const emailsList = Array.isArray(data.emails?.emails) ? data.emails.emails : [];
+    const emailsPayload = {
+      ...data.emails,
+      emails: emailsList,
+      items: emailsList,
+    };
+    return NextResponse.json(
+      {
+        ...data,
+        emails: emailsPayload,
       },
-    });
-  } catch {
+      {
+        headers: {
+          "Cache-Control": "private, no-store",
+        },
+      }
+    );
+  } catch (err) {
+    console.error("[mailbox-api] Failed to load mailbox:", err);
     return NextResponse.json({ error: "Failed to load mailbox" }, { status: 500 });
   }
 }

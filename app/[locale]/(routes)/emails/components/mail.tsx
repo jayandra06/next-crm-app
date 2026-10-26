@@ -43,6 +43,14 @@ interface MailProps {
   defaultLayout: number[] | undefined;
 }
 
+function extractEmailItems(emailsPayload: any): Mail[] {
+  if (!emailsPayload) return [];
+  if (Array.isArray(emailsPayload.emails)) return emailsPayload.emails;
+  if (Array.isArray(emailsPayload.items)) return emailsPayload.items;
+  if (Array.isArray(emailsPayload)) return emailsPayload;
+  return [];
+}
+
 export function MailComponent({
   accounts,
   mails,
@@ -189,10 +197,11 @@ export function MailComponent({
       if (r.ok) {
         const fresh = await r.json();
         if (fresh?.emails) {
+          const freshItems = extractEmailItems(fresh.emails);
           setLocalCounts(fresh.counts);
-          setLocalTotal(fresh.emails.total);
-          setLocalTotalPages(fresh.emails.totalPages);
-          setLocalMails(fresh.emails.items);
+          setLocalTotal(fresh.emails.total ?? freshItems.length);
+          setLocalTotalPages(fresh.emails.totalPages ?? (freshItems.length > 0 ? 1 : 0));
+          setLocalMails(freshItems);
         }
       }
     } catch (err: any) {
@@ -220,10 +229,11 @@ export function MailComponent({
           .then((r) => r.json())
           .then((fresh) => {
             if (fresh?.emails) {
-              setLocalMails(fresh.emails.items);
+              const freshItems = extractEmailItems(fresh.emails);
+              setLocalMails(freshItems);
               setLocalCounts(fresh.counts);
-              setLocalTotal(fresh.emails.total);
-              setLocalTotalPages(fresh.emails.totalPages);
+              setLocalTotal(fresh.emails.total ?? freshItems.length);
+              setLocalTotalPages(fresh.emails.totalPages ?? (freshItems.length > 0 ? 1 : 0));
             }
           })
           .catch(() => {});
@@ -258,14 +268,26 @@ export function MailComponent({
         const data = await res.json();
         if (!active || !data?.emails) return;
 
-        setLocalCounts(data.counts);
-        setLocalTotal(data.emails.total);
-        setLocalTotalPages(data.emails.totalPages);
+        const incoming = extractEmailItems(data.emails);
+
+        if (data.counts) {
+          setLocalCounts(data.counts);
+        }
+        if (typeof data.emails.total === "number") {
+          setLocalTotal(data.emails.total);
+        }
+        if (typeof data.emails.totalPages === "number") {
+          setLocalTotalPages(data.emails.totalPages);
+        }
 
         setLocalMails((prev) => {
+          // Guard against transient empty payload if total is non-zero
+          if (incoming.length === 0 && (data.emails.total ?? 0) > 0 && prev.length > 0) {
+            return prev;
+          }
+
           const locallyRead = markedReadRef.current;
           const locallyUnread = userMarkedUnreadRef.current;
-          const incoming: Mail[] = data.emails.items ?? [];
 
           return incoming.map((item) => {
             if (locallyRead.has(item.id)) return { ...item, isRead: true };
@@ -346,17 +368,17 @@ export function MailComponent({
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      const idx = mails.findIndex((m) => m.id === mail.selected);
-      if (e.key === "j" && idx < mails.length - 1) {
-        setMail({ ...mail, selected: mails[idx + 1].id });
+      const idx = localMails.findIndex((m) => m.id === mail.selected);
+      if (e.key === "j" && idx < localMails.length - 1) {
+        setMail({ ...mail, selected: localMails[idx + 1].id });
       }
       if (e.key === "k" && idx > 0) {
-        setMail({ ...mail, selected: mails[idx - 1].id });
+        setMail({ ...mail, selected: localMails[idx - 1].id });
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [mail, mails, setMail]);
+  }, [mail, localMails, setMail]);
 
   async function runBulk(fn: () => Promise<void>, optimistic?: () => void) {
     setBulkBusy(true);
