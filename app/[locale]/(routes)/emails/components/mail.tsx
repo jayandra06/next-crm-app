@@ -1,9 +1,10 @@
 "use client";
 import * as React from "react";
-import { Archive, Inbox, PenLine, RefreshCw, Send, ShieldAlert, Star, Trash2 } from "lucide-react";
+import { Archive, Inbox, PenLine, RefreshCw, Send, Settings, ShieldAlert, Star, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
+import { FeatureEmailSettingsButton } from "@/components/email/FeatureEmailSettingsButton";
 
 import { AccountSwitcher } from "@/app/[locale]/(routes)/emails/components/account-switcher";
 import { ComposeModal } from "@/app/[locale]/(routes)/emails/components/ComposeModal";
@@ -28,7 +29,7 @@ import {
 } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { bulkSetRead, bulkTrash } from "@/actions/emails/mailbox-actions";
+import { bulkSetRead, bulkTrash, setEmailRead } from "@/actions/emails/mailbox-actions";
 import { syncMailboxAction } from "@/actions/emails/sync";
 
 interface MailProps {
@@ -65,25 +66,6 @@ export function MailComponent({
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const handleSyncMailbox = React.useCallback(async () => {
-    if (!activeAccountId || syncing) return;
-    setSyncing(true);
-    try {
-      const res = await syncMailboxAction(activeAccountId);
-      if (res.newMessages > 0) {
-        toast.success(`Mailbox synced: ${res.newMessages} new message${res.newMessages > 1 ? "s" : ""} received`);
-      } else {
-        toast.success("Mailbox is up to date");
-      }
-      router.refresh();
-    } catch (err: any) {
-      console.error("[Mail] Sync failed:", err);
-      toast.error("Failed to sync mailbox: " + (err.message || "Unknown error"));
-    } finally {
-      setSyncing(false);
-    }
-  }, [activeAccountId, syncing, router]);
-
   const isLargeScreen = React.useSyncExternalStore(
     (subscribe) => {
       const mq = window.matchMedia("(min-width: 1024px)");
@@ -106,17 +88,77 @@ export function MailComponent({
 
   const listFilter = searchParams.get("filter") === "unread" ? "unread" : "all";
   const [localMails, setLocalMails] = React.useState(mails);
+  const [localCounts, setLocalCounts] = React.useState<MailboxCounts>(mailboxCounts);
+  const [localTotal, setLocalTotal] = React.useState<number>(total);
+  const [localTotalPages, setLocalTotalPages] = React.useState<number>(totalPages);
+
+  const markedReadRef = React.useRef<Set<string>>(new Set());
+  const userMarkedUnreadRef = React.useRef<Set<string>>(new Set());
+  const pollCountRef = React.useRef(0);
+
   React.useEffect(() => {
     setLocalMails(mails);
   }, [mails]);
 
+  React.useEffect(() => {
+    setLocalCounts(mailboxCounts);
+  }, [mailboxCounts]);
+
+  React.useEffect(() => {
+    setLocalTotal(total);
+  }, [total]);
+
+  React.useEffect(() => {
+    setLocalTotalPages(totalPages);
+  }, [totalPages]);
+
   const patchMail = React.useCallback((id: string, patch: Partial<Mail>) => {
-    setLocalMails((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+    if (patch.isRead === false) {
+      userMarkedUnreadRef.current.add(id);
+      markedReadRef.current.delete(id);
+    } else if (patch.isRead === true) {
+      userMarkedUnreadRef.current.delete(id);
+      markedReadRef.current.add(id);
+    }
+
+    setLocalMails((prev) => {
+      const target = prev.find((m) => m.id === id);
+      if (target) {
+        if (patch.isRead !== undefined && patch.isRead !== target.isRead) {
+          setLocalCounts((c) => ({
+            ...c,
+            inboxUnread: patch.isRead ? Math.max(0, c.inboxUnread - 1) : c.inboxUnread + 1,
+          }));
+        }
+        if (patch.isStarred !== undefined && patch.isStarred !== target.isStarred) {
+          setLocalCounts((c) => ({
+            ...c,
+            starred: patch.isStarred ? c.starred + 1 : Math.max(0, c.starred - 1),
+          }));
+        }
+      }
+      return prev.map((m) => (m.id === id ? { ...m, ...patch } : m));
+    });
   }, []);
 
   const removeMail = React.useCallback(
     (id: string) => {
       setLocalMails((prev) => {
+        const target = prev.find((m) => m.id === id);
+        if (target) {
+          if (!target.isRead) {
+            setLocalCounts((c) => ({
+              ...c,
+              inboxUnread: Math.max(0, c.inboxUnread - 1),
+            }));
+          }
+          if (target.isStarred) {
+            setLocalCounts((c) => ({
+              ...c,
+              starred: Math.max(0, c.starred - 1),
+            }));
+          }
+        }
         const next = prev.filter((m) => m.id !== id);
         if (mail.selected === id) {
           setMail({ ...mail, selected: next[0]?.id ?? null });
@@ -126,6 +168,41 @@ export function MailComponent({
     },
     [mail, setMail]
   );
+
+  const handleSyncMailbox = React.useCallback(async () => {
+    if (!activeAccountId || syncing) return;
+    setSyncing(true);
+    try {
+      const res = await syncMailboxAction(activeAccountId);
+      if (res.newMessages > 0) {
+        toast.success(`Mailbox synced: ${res.newMessages} new message${res.newMessages > 1 ? "s" : ""} received`);
+      } else {
+        toast.success("Mailbox is up to date");
+      }
+      const qp = new URLSearchParams({
+        accountId: activeAccountId,
+        view: mailboxView,
+        page: String(page),
+        sync: "1",
+      });
+      if (listFilter === "unread") qp.set("filter", "unread");
+      const r = await fetch(`/api/emails/mailbox?${qp.toString()}`);
+      if (r.ok) {
+        const fresh = await r.json();
+        if (fresh?.emails) {
+          setLocalCounts(fresh.counts);
+          setLocalTotal(fresh.emails.total);
+          setLocalTotalPages(fresh.emails.totalPages);
+          setLocalMails(fresh.emails.items);
+        }
+      }
+    } catch (err: any) {
+      console.error("[Mail] Sync failed:", err);
+      toast.error("Failed to sync mailbox: " + (err.message || "Unknown error"));
+    } finally {
+      setSyncing(false);
+    }
+  }, [activeAccountId, syncing, mailboxView, page, listFilter]);
 
   const handleSentMail = React.useCallback(
     (sentMail?: any) => {
@@ -137,10 +214,85 @@ export function MailComponent({
         setLocalMails((prev) => [sentMail, ...prev.filter((m) => m.id !== sentMail.id)]);
         setMail((prev) => ({ ...prev, selected: sentMail.id }));
       }
-      router.refresh();
+      if (activeAccountId) {
+        fetch(
+          `/api/emails/mailbox?accountId=${encodeURIComponent(activeAccountId)}&view=${encodeURIComponent(mailboxView)}&page=${page}`
+        )
+          .then((r) => r.json())
+          .then((fresh) => {
+            if (fresh?.emails) {
+              setLocalMails(fresh.emails.items);
+              setLocalCounts(fresh.counts);
+              setLocalTotal(fresh.emails.total);
+              setLocalTotalPages(fresh.emails.totalPages);
+            }
+          })
+          .catch(() => {});
+      }
     },
-    [mailboxView, activeAccountId, setMail, router]
+    [mailboxView, activeAccountId, setMail, page]
   );
+
+  // Auto-poll for incoming messages without page reload
+  React.useEffect(() => {
+    if (!activeAccountId) return;
+
+    let active = true;
+    const intervalMs = 7000;
+
+    const pollMailbox = async () => {
+      if (document.visibilityState !== "visible") return;
+      pollCountRef.current += 1;
+      const shouldSync = pollCountRef.current % 3 === 0;
+
+      try {
+        const queryParams = new URLSearchParams({
+          accountId: activeAccountId,
+          view: mailboxView,
+          page: String(page),
+        });
+        if (listFilter === "unread") queryParams.set("filter", "unread");
+        if (shouldSync) queryParams.set("sync", "1");
+
+        const res = await fetch(`/api/emails/mailbox?${queryParams.toString()}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!active || !data?.emails) return;
+
+        setLocalCounts(data.counts);
+        setLocalTotal(data.emails.total);
+        setLocalTotalPages(data.emails.totalPages);
+
+        setLocalMails((prev) => {
+          const locallyRead = markedReadRef.current;
+          const locallyUnread = userMarkedUnreadRef.current;
+          const incoming: Mail[] = data.emails.items ?? [];
+
+          return incoming.map((item) => {
+            if (locallyRead.has(item.id)) return { ...item, isRead: true };
+            if (locallyUnread.has(item.id)) return { ...item, isRead: false };
+            return item;
+          });
+        });
+      } catch {
+        // Silent poll failure
+      }
+    };
+
+    const timer = setInterval(pollMailbox, intervalMs);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        pollMailbox();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      active = false;
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [activeAccountId, mailboxView, page, listFilter]);
 
   const filteredMails = React.useMemo(() => {
     if (mailboxView === "inbox" && listFilter === "unread") {
@@ -148,6 +300,27 @@ export function MailComponent({
     }
     return localMails;
   }, [localMails, mailboxView, listFilter]);
+
+  const selectedMail = filteredMails.find((item) => item.id === mail.selected) || null;
+
+  // Auto-mark email as read when opened/selected
+  const isReading = isLargeScreen || mobileReadOpen;
+  React.useEffect(() => {
+    if (
+      isReading &&
+      selectedMail &&
+      !selectedMail.isRead &&
+      !markedReadRef.current.has(selectedMail.id) &&
+      !userMarkedUnreadRef.current.has(selectedMail.id)
+    ) {
+      const mailId = selectedMail.id;
+      markedReadRef.current.add(mailId);
+      patchMail(mailId, { isRead: true });
+      setEmailRead(mailId, true).catch((err) => {
+        console.error("[Mail] Failed to mark email as read in background:", err);
+      });
+    }
+  }, [isReading, selectedMail, patchMail]);
 
   React.useEffect(() => {
     if (!mail.selected && filteredMails[0]?.id) {
@@ -222,7 +395,7 @@ export function MailComponent({
       icon: Inbox,
       variant: (mailboxView === "inbox" ? "default" : "ghost") as "default" | "ghost",
       href: viewHref("inbox"),
-      label: mailboxCounts.inboxUnread > 0 ? String(mailboxCounts.inboxUnread) : undefined,
+      label: localCounts.inboxUnread > 0 ? String(localCounts.inboxUnread) : undefined,
     },
     {
       title: "Sent",
@@ -235,32 +408,30 @@ export function MailComponent({
       icon: Star,
       variant: (mailboxView === "starred" ? "default" : "ghost") as "default" | "ghost",
       href: viewHref("starred"),
-      label: mailboxCounts.starred > 0 ? String(mailboxCounts.starred) : undefined,
+      label: localCounts.starred > 0 ? String(localCounts.starred) : undefined,
     },
     {
       title: "Spam",
       icon: ShieldAlert,
       variant: (mailboxView === "spam" ? "default" : "ghost") as "default" | "ghost",
       href: viewHref("spam"),
-      label: mailboxCounts.spam > 0 ? String(mailboxCounts.spam) : undefined,
+      label: localCounts.spam > 0 ? String(localCounts.spam) : undefined,
     },
     {
       title: "Archive",
       icon: Archive,
       variant: (mailboxView === "archive" ? "default" : "ghost") as "default" | "ghost",
       href: viewHref("archive"),
-      label: mailboxCounts.archive > 0 ? String(mailboxCounts.archive) : undefined,
+      label: localCounts.archive > 0 ? String(localCounts.archive) : undefined,
     },
     {
       title: "Trash",
       icon: Trash2,
       variant: (mailboxView === "trash" ? "default" : "ghost") as "default" | "ghost",
       href: viewHref("trash"),
-      label: mailboxCounts.trash > 0 ? String(mailboxCounts.trash) : undefined,
+      label: localCounts.trash > 0 ? String(localCounts.trash) : undefined,
     },
   ];
-
-  const selectedMail = filteredMails.find((item) => item.id === mail.selected) || null;
 
   const mailListHandlers = {
     mailboxView,
@@ -322,13 +493,16 @@ export function MailComponent({
               </TabsTrigger>
               <TabsTrigger value="unread" className="rounded-full px-3 text-xs">
                 Unread
-                {mailboxCounts.inboxUnread > 0 && (
-                  <span className="ml-1 text-primary">{mailboxCounts.inboxUnread}</span>
+                {localCounts.inboxUnread > 0 && (
+                  <span className="ml-1 text-primary">{localCounts.inboxUnread}</span>
                 )}
               </TabsTrigger>
             </TabsList>
           </Tabs>
         )}
+        <div className={cn("flex items-center gap-1", mailboxView !== "inbox" && "ml-auto")}>
+          <FeatureEmailSettingsButton feature="emails" size="icon" showLabel={false} />
+        </div>
       </div>
       <div className="shrink-0 px-3 pb-2 pt-2">
         <MailSearchBar />
@@ -385,8 +559,8 @@ export function MailComponent({
         <MailList
           items={filteredMails}
           page={page}
-          totalPages={totalPages}
-          total={total}
+          totalPages={localTotalPages}
+          total={localTotal}
           selectedIds={selectedIds}
           onSelectedIdsChange={setSelectedIds}
           {...mailListHandlers}
@@ -405,7 +579,7 @@ export function MailComponent({
         <aside className="hidden w-44 shrink-0 flex-col overflow-y-auto overscroll-contain border-r border-border/40 bg-muted/30 lg:flex">
           <div className="space-y-1 p-2">
             <p className="hidden px-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground sm:block">
-              View as
+              {accounts.length > 1 ? "View as" : "Mailbox"}
             </p>
             <AccountSwitcher accounts={accounts} activeAccountId={activeAccountId} />
           </div>
@@ -431,6 +605,19 @@ export function MailComponent({
             </div>
           )}
           <Nav links={navLinks} />
+          <div className="mt-auto border-t border-border/40 p-2">
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
+              className="h-8 w-full justify-start gap-2 px-2 text-xs text-muted-foreground hover:text-foreground"
+            >
+              <Link href="/emails/settings?feature=emails">
+                <Settings className="h-4 w-4 shrink-0" />
+                <span className="truncate">Email settings</span>
+              </Link>
+            </Button>
+          </div>
         </aside>
 
         <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden lg:hidden">

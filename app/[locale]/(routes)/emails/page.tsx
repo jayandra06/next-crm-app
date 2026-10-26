@@ -50,11 +50,33 @@ async function EmailMailbox({
   searchParams: Promise<EmailSearchParams>;
   isAdmin: boolean;
 }) {
-  const [t, params, cookieStore, connectedAccounts] = await Promise.all([
+  const params = await searchParams;
+  const requestedAccountId = params.accountId;
+  const mailboxView = parseMailboxView(
+    params.box ?? (params.folder === "SENT" ? "sent" : params.folder?.toLowerCase())
+  );
+  const unreadOnly = params.filter === "unread";
+  const activePage = Math.max(1, parseInt(params.page ?? "1", 10) || 1);
+
+  // If requestedAccountId is in searchParams, fetch mailbox data concurrently with accounts & cookies
+  const mailboxPagePromise = requestedAccountId
+    ? getMailboxPageData(
+        requestedAccountId,
+        mailboxView,
+        activePage,
+        params.search,
+        unreadOnly
+      ).catch((err) => {
+        console.error("[EmailRoute] Failed to load mailbox data:", err);
+        return null;
+      })
+    : null;
+
+  const [t, cookieStore, connectedAccounts, initialMailboxData] = await Promise.all([
     getTranslations("ModuleMenu"),
-    searchParams,
     cookies(),
     loadConnectedAccounts(),
+    mailboxPagePromise,
   ]);
 
   const layoutMail = cookieStore.get("react-resizable-panels:layout:mail");
@@ -140,14 +162,9 @@ async function EmailMailbox({
     );
   }
 
-  const activeAccountId = params.accountId ?? connectedAccounts[0]?.id;
+  const activeAccountId = requestedAccountId ?? connectedAccounts[0]?.id;
   const activeMailboxAddress =
     connectedAccounts.find((a) => a.id === activeAccountId)?.username ?? "";
-  const mailboxView = parseMailboxView(
-    params.box ?? (params.folder === "SENT" ? "sent" : params.folder?.toLowerCase())
-  );
-  const unreadOnly = params.filter === "unread";
-  const activePage = Math.max(1, parseInt(params.page ?? "1", 10) || 1);
 
   let emailsResult: EmailsListResult = emptyEmailsResult;
   let mailboxCounts = {
@@ -158,7 +175,10 @@ async function EmailMailbox({
     archive: 0,
     trash: 0,
   };
-  if (activeAccountId) {
+  if (initialMailboxData && activeAccountId === requestedAccountId) {
+    emailsResult = initialMailboxData.emails;
+    mailboxCounts = initialMailboxData.counts;
+  } else if (activeAccountId) {
     try {
       ({ emails: emailsResult, counts: mailboxCounts } = await getMailboxPageData(
         activeAccountId,
