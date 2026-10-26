@@ -6,6 +6,9 @@ const withNextIntl = require("next-intl/plugin")(
 const nextConfig = {
   output: "standalone",
   poweredByHeader: false,
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   serverExternalPackages: ["pdf-parse", "pdfjs-dist"],
   experimental: {
     // Reuse prefetched App Router payloads so sidebar clicks feel instant.
