@@ -28,3 +28,14 @@ export function parseAttendeeIds(json: unknown): string[] {
   if (!Array.isArray(json)) return [];
   return json.filter((x): x is string => typeof x === "string");
 }
+
+export function inboxRoomKeys(currentUserId: string, peerIds: string[]): string[] {
+  const me = currentUserId.trim().toLowerCase();
+  return [
+    GENERAL_CHAT_ROOM,
+    ...peerIds
+      .filter((id) => id.trim().toLowerCase() !== me)
+      .map((id) => dmRoomKey(currentUserId, id)),
+  ];
+}
+
