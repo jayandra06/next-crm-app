@@ -37,9 +37,13 @@ jest.mock("@/lib/email/mailbox-cache", () => ({
   invalidateMailboxCache: jest.fn().mockResolvedValue(undefined),
 }));
 
-jest.mock("next/cache", () => ({
-  revalidatePath: jest.fn(),
-}));
+jest.mock(
+  "next/cache",
+  () => ({
+    revalidatePath: jest.fn(),
+  }),
+  { virtual: true }
+);
 
 describe("normalizeEmailAddress", () => {
   it("extracts and lowercases email from angle brackets or plain string", () => {
