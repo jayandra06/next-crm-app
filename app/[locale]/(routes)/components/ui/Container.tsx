@@ -3,7 +3,7 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import React from "react";
 import { FeatureEmailSettingsButton } from "@/components/email/FeatureEmailSettingsButton";
-import type { FeatureKey } from "@/actions/emails/feature-preferences";
+import type { FeatureKey } from "@/lib/email/feature-preferences";
 
 interface ContainerProps {
   title: string;
