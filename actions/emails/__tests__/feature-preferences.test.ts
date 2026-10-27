@@ -14,7 +14,7 @@ jest.mock("next/cache", () => ({
 import {
   SUPPORTED_FEATURES,
   type FeatureKey,
-} from "@/actions/emails/feature-preferences";
+} from "@/lib/email/feature-preferences";
 
 describe("feature email preferences", () => {
   it("includes all required CRM features", () => {

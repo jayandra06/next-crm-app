@@ -56,4 +56,6 @@ export async function syncMailboxAction(accountId: string): Promise<{
 }
 
 /** Backward compatibility alias */
-export const triggerSync = syncMailboxAction;
+export async function triggerSync(accountId: string) {
+  return syncMailboxAction(accountId);
+}

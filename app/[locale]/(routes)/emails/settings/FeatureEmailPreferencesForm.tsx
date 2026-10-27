@@ -31,11 +31,11 @@ import {
   Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { setFeatureEmailPreference } from "@/actions/emails/feature-preferences";
 import {
   SUPPORTED_FEATURES,
-  setFeatureEmailPreference,
   type FeatureKey,
-} from "@/actions/emails/feature-preferences";
+} from "@/lib/email/feature-preferences";
 import type { AccessibleEmailAccount } from "@/actions/emails/accessible-accounts";
 
 interface FeatureEmailPreferencesFormProps {

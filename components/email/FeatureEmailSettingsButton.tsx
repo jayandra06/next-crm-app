@@ -10,7 +10,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import type { FeatureKey } from "@/actions/emails/feature-preferences";
+import type { FeatureKey } from "@/lib/email/feature-preferences";
 
 interface FeatureEmailSettingsButtonProps {
   feature: FeatureKey;
