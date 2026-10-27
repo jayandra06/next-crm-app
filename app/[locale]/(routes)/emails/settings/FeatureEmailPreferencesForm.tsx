@@ -126,8 +126,24 @@ export function FeatureEmailPreferencesForm({
         {SUPPORTED_FEATURES.map((feature) => {
           const Icon = FEATURE_ICONS[feature.iconName] || Mail;
           const isHighlighted = highlightedFeature === feature.key;
-          const currentAccountId = preferences[feature.key] || accounts[0]?.id || "";
-          const activeAccount = accounts.find((a) => a.id === currentAccountId) || accounts[0];
+          const defaultAccount =
+            accounts.find((a) => {
+              const name = (a.ownerName || "").toLowerCase();
+              const user = (a.username || "").toLowerCase();
+              const mail = (a.ownerEmail || "").toLowerCase();
+              const lbl = (a.label || "").toLowerCase();
+              return (
+                name.includes("jayandra") ||
+                lbl.includes("jayandra") ||
+                user.includes("ceo@vensailabs.in") ||
+                mail.includes("ceo@vensailabs.in")
+              );
+            }) ??
+            accounts.find((a) => a.accessKind === "owner") ??
+            accounts[0];
+
+          const currentAccountId = preferences[feature.key] || defaultAccount?.id || "";
+          const activeAccount = accounts.find((a) => a.id === currentAccountId) || defaultAccount;
           const isSaving = savingFeature === feature.key && isPending;
 
           return (
@@ -180,7 +196,9 @@ export function FeatureEmailPreferencesForm({
                       <SelectValue placeholder="Select email account">
                         {activeAccount ? (
                           <span className="truncate">
-                            {activeAccount.label || activeAccount.username}{" "}
+                            {activeAccount.ownerName
+                              ? `${activeAccount.ownerName} (${activeAccount.label || activeAccount.username})`
+                              : activeAccount.label || activeAccount.username}{" "}
                             <span className="text-muted-foreground">({activeAccount.username})</span>
                           </span>
                         ) : (
@@ -188,20 +206,39 @@ export function FeatureEmailPreferencesForm({
                         )}
                       </SelectValue>
                     </SelectTrigger>
-                    <SelectContent align="start" className="max-w-[22rem]">
-                      {accounts.map((acc) => (
-                        <SelectItem key={acc.id} value={acc.id} className="text-xs">
-                          <div className="flex items-center gap-1.5 truncate">
-                            <span className="font-medium">{acc.label || acc.username}</span>
-                            <span className="text-muted-foreground text-[11px]">({acc.username})</span>
-                            {acc.accessKind !== "owner" && (
-                              <Badge variant="secondary" className="ml-1 text-[9px] uppercase px-1 py-0">
-                                {acc.accessKind}
-                              </Badge>
-                            )}
-                          </div>
-                        </SelectItem>
-                      ))}
+                    <SelectContent
+                      align="start"
+                      className="max-w-[26rem] max-h-64 overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border/80 hover:[&::-webkit-scrollbar-thumb]:bg-border pr-1"
+                    >
+                      {accounts.map((acc) => {
+                        const displayName = acc.ownerName
+                          ? `${acc.ownerName} (${acc.label || acc.username})`
+                          : acc.label || acc.username;
+                        return (
+                          <SelectItem key={acc.id} value={acc.id} className="text-xs py-2">
+                            <div className="flex flex-col gap-0.5 min-w-0">
+                              <div className="flex items-center gap-1.5 truncate">
+                                <span className="font-medium text-foreground">{displayName}</span>
+                                {acc.accessKind && (
+                                  <Badge
+                                    variant={acc.accessKind === "owner" ? "outline" : "secondary"}
+                                    className="ml-auto text-[9px] uppercase px-1.5 py-0 shrink-0"
+                                  >
+                                    {acc.accessKind === "owner"
+                                      ? "Personal"
+                                      : acc.accessKind === "delegate"
+                                      ? "Delegated"
+                                      : "Team"}
+                                  </Badge>
+                                )}
+                              </div>
+                              <span className="text-muted-foreground text-[11px] truncate">
+                                {acc.username}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                 </div>

@@ -204,8 +204,16 @@
     @apply flex min-h-0 max-w-none flex-1 flex-col overflow-hidden px-2 py-2 sm:px-3 sm:py-2;
   }
 
+  .app-content-wrap:has([data-emails-settings]) {
+    @apply overflow-y-auto overflow-x-hidden h-full max-h-full p-2 sm:p-4;
+  }
+
   .emails-shell {
     @apply flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden;
+  }
+
+  .emails-shell:has([data-emails-settings]) {
+    @apply overflow-y-auto overflow-x-hidden;
   }
 
   @media (max-width: 1023px) {

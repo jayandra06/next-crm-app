@@ -52,7 +52,7 @@ export function HeaderLive({ user, initialLive }: Props) {
   const [searchOpen, setSearchOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-30 my-2 flex h-[3.25rem] shrink-0 items-center gap-2 border-b border-border/50 bg-background px-2 sm:my-3 sm:gap-3 sm:px-5">
+    <header className="sticky top-0 z-30 mt-2 mb-3.5 flex h-[3.25rem] shrink-0 items-center gap-2 border-b border-border/50 bg-background px-2 sm:mt-3 sm:mb-4.5 sm:gap-3 sm:px-5">
       {searchOpen ? (
         <div className="flex min-w-0 flex-1 items-center gap-2 sm:hidden">
           <div className="min-w-0 flex-1">
@@ -88,7 +88,7 @@ export function HeaderLive({ user, initialLive }: Props) {
         </Button>
       </div>
 
-      <div className={`${searchOpen ? "hidden sm:flex" : "flex"} shrink-0 items-center gap-0.5 rounded-2xl border border-border/50 bg-muted/25 p-0.5 sm:gap-1 sm:p-1`}>
+      <div className={`${searchOpen ? "hidden sm:flex" : "flex"} shrink-0 items-center gap-0.5 rounded-2xl border border-border/50 bg-muted/25 p-0.5 sm:gap-1 sm:p-1 mb-1 sm:mb-1.5 shadow-2xs`}>
         <div className="hidden sm:flex">
           <CrmAssistantSheet />
         </div>

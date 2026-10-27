@@ -39,7 +39,7 @@ const Header = ({
   notifications = [],
 }: Props) => {
   return (
-    <header className="sticky top-0 z-30 my-2 flex h-[3.25rem] shrink-0 items-center gap-3 border-b border-border/50 bg-background/75 px-3 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 sm:my-3 sm:px-5">
+    <header className="sticky top-0 z-30 mt-2 mb-3.5 flex h-[3.25rem] shrink-0 items-center gap-3 border-b border-border/50 bg-background/75 px-3 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 sm:mt-3 sm:mb-4.5 sm:px-5">
       <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
         <SidebarTrigger className="-ml-0.5 h-9 w-9 shrink-0 rounded-xl" />
         <Separator orientation="vertical" className="hidden h-5 sm:block" />
@@ -48,7 +48,7 @@ const Header = ({
         </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-0.5 rounded-2xl border border-border/50 bg-muted/25 p-0.5 sm:gap-1 sm:p-1">
+      <div className="flex shrink-0 items-center gap-0.5 rounded-2xl border border-border/50 bg-muted/25 p-0.5 sm:gap-1 sm:p-1 mb-1 sm:mb-1.5 shadow-2xs">
         <HeaderMailButton unreadCount={unreadEmailCount} />
         <HeaderChatPanel unreadCount={chatUnreadCount} />
         <HeaderNotifications totalCount={notificationCount} items={notifications} />

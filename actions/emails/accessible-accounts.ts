@@ -26,6 +26,49 @@ const accountSelect = {
   user: { select: { name: true, email: true } },
 } as const;
 
+function isJayandraOrCeoAccount(acc: AccessibleEmailAccount): boolean {
+  const name = (acc.ownerName || "").toLowerCase();
+  const email = (acc.ownerEmail || "").toLowerCase();
+  const username = (acc.username || "").toLowerCase();
+  const label = (acc.label || "").toLowerCase();
+  return (
+    name.includes("jayandra") ||
+    label.includes("jayandra") ||
+    username.includes("ceo@vensailabs.in") ||
+    email.includes("ceo@vensailabs.in") ||
+    email.includes("jaybabu0610@gmail.com")
+  );
+}
+
+function sortAccessibleAccounts(
+  accounts: AccessibleEmailAccount[],
+  userId: string,
+  elevated: boolean
+): AccessibleEmailAccount[] {
+  return [...accounts].sort((a, b) => {
+    // 1. If elevated (CEO), prioritize Jayandra's / CEO personal mailbox to the very top
+    if (elevated) {
+      const aIsCeo = isJayandraOrCeoAccount(a);
+      const bIsCeo = isJayandraOrCeoAccount(b);
+      if (aIsCeo && !bIsCeo) return -1;
+      if (!aIsCeo && bIsCeo) return 1;
+    }
+
+    // 2. Owner mailboxes come before delegates and admin
+    const accessScore = (acc: AccessibleEmailAccount) => {
+      if (acc.accessKind === "owner") return 0;
+      if (acc.accessKind === "delegate") return 1;
+      return 2; // admin
+    };
+
+    const diff = accessScore(a) - accessScore(b);
+    if (diff !== 0) return diff;
+
+    // 3. Alphabetical by label or username
+    return (a.label || a.username).localeCompare(b.label || b.username);
+  });
+}
+
 async function loadAccessibleAccounts(
   userId: string,
   elevated: boolean
@@ -43,7 +86,7 @@ async function loadAccessibleAccounts(
       : { createdAt: "asc" },
   });
 
-  return rows.map((a) => {
+  const mapped = rows.map((a) => {
     let accessKind: MailboxAccessKind = "delegate";
     if (a.userId === userId) accessKind = "owner";
     else if (a.delegateUserIds.includes(userId)) accessKind = "delegate";
@@ -59,11 +102,13 @@ async function loadAccessibleAccounts(
       ownerEmail: a.user.email,
     };
   });
+
+  return sortAccessibleAccounts(mapped, userId, elevated);
 }
 
 const cachedAccountsForUser = unstable_cache(
   async (userId: string, elevated: boolean) => loadAccessibleAccounts(userId, elevated),
-  ["accessible-email-accounts-v5"],
+  ["accessible-email-accounts-v6"],
   { revalidate: 120, tags: ["accessible-email-accounts"] }
 );
 
