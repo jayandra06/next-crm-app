@@ -24,6 +24,7 @@ const OpportunitiesPage = async () => {
     <Container
       title={t("opportunities.pageTitle")}
       description={t("opportunities.pageDescription")}
+      feature="sales"
     >
       <Suspense fallback={<CrmTableSkeleton />}>
         <OpportunitiesContent />

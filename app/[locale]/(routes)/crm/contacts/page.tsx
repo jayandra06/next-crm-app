@@ -18,6 +18,7 @@ const ContactsPage = async () => {
     <Container
       title={t("contacts.pageTitle")}
       description={t("contacts.pageDescription")}
+      feature="contacts"
     >
       <Suspense fallback={<CrmTableSkeleton />}>
         <ContactsContent />

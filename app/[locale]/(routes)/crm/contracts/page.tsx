@@ -203,6 +203,7 @@ const ContractsPage = async (props: ContractsPageProps) => {
     <Container
       title={t("contracts.pageTitle")}
       description={t("contracts.pageDescription")}
+      feature="contracts"
     >
       <ContractsSectionNav activeSection={section} />
       <Suspense key={section ?? "contracts"} fallback={<CrmTableSkeleton />}>

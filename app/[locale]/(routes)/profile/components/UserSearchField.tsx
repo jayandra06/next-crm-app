@@ -35,31 +35,28 @@ export function UserSearchField({
 
   useEffect(() => {
     const q = query.trim();
-    if (q.length < 2) {
-      setResults([]);
-      setSearched(false);
-      setSearching(false);
-      return;
-    }
     let cancelled = false;
     setSearching(true);
     const hidden = new Set(excludeKey ? excludeKey.split("\0") : []);
-    const timer = window.setTimeout(() => {
-      void searchUsersForMailboxShare(q)
-        .then((people) => {
-          if (cancelled) return;
-          setResults(people.filter((person) => !hidden.has(person.id)));
-          setSearched(true);
-        })
-        .catch(() => {
-          if (cancelled) return;
-          setResults([]);
-          setSearched(true);
-        })
-        .finally(() => {
-          if (!cancelled) setSearching(false);
-        });
-    }, 220);
+    const timer = window.setTimeout(
+      () => {
+        void searchUsersForMailboxShare(q)
+          .then((people) => {
+            if (cancelled) return;
+            setResults(people.filter((person) => !hidden.has(person.id)));
+            setSearched(true);
+          })
+          .catch(() => {
+            if (cancelled) return;
+            setResults([]);
+            setSearched(true);
+          })
+          .finally(() => {
+            if (!cancelled) setSearching(false);
+          });
+      },
+      q.length > 0 ? 200 : 0
+    );
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
@@ -106,32 +103,36 @@ export function UserSearchField({
           <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
         )}
       </div>
-      {query.trim().length > 0 && query.trim().length < 2 && (
-        <p className="text-xs text-muted-foreground">Type at least 2 characters.</p>
-      )}
       {searched && results.length === 0 && !searching && (
         <p className="rounded-md border border-dashed px-3 py-2 text-sm text-muted-foreground">
-          No active user matches that name or email. They need a CRM account before you can share this mailbox.
+          {query.trim().length > 0
+            ? "No active user matches that name or email."
+            : "No other active users found to delegate to."}
         </p>
       )}
       {results.length > 0 && (
-        <ul id={listId} role="listbox" className="overflow-hidden rounded-md border bg-popover">
-          {results.map((person) => (
-            <li key={person.id}>
-              <button
-                type="button"
-                role="option"
-                className={cn(
-                  "flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm hover:bg-accent"
-                )}
-                onClick={() => pick(person)}
-              >
-                <span className="font-medium">{person.name}</span>
-                <span className="text-xs text-muted-foreground">{personLine(person)}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
+        <div className="space-y-1">
+          <p className="text-xs text-muted-foreground font-medium">
+            {query.trim().length > 0 ? "Matching team members:" : "Available team members (click to add):"}
+          </p>
+          <ul id={listId} role="listbox" className="max-h-52 overflow-y-auto rounded-md border bg-popover shadow-sm">
+            {results.map((person) => (
+              <li key={person.id}>
+                <button
+                  type="button"
+                  role="option"
+                  className={cn(
+                    "flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm hover:bg-accent border-b last:border-b-0 transition-colors"
+                  )}
+                  onClick={() => pick(person)}
+                >
+                  <span className="font-medium text-foreground">{person.name}</span>
+                  <span className="text-xs text-muted-foreground">{personLine(person)}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );

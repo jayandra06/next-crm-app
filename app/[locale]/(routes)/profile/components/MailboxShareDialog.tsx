@@ -66,11 +66,11 @@ export function MailboxShareDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Share {account.label}</DialogTitle>
+          <DialogTitle>Delegate Mailbox Access — {account.label}</DialogTitle>
           <DialogDescription>
             {account.ownerName ? `${account.ownerName}'s mailbox · ` : ""}
-            {account.username}. People you add can read this inbox and send from this address. They
-            cannot delete the mailbox or change its settings.
+            {account.username}. People you add can open your inbox, read emails, and send emails on
+            your behalf. They cannot delete the mailbox or change its connection settings.
           </DialogDescription>
         </DialogHeader>
 
@@ -78,16 +78,17 @@ export function MailboxShareDialog({
           excludeIds={[...delegates.map((person) => person.id), ...(ownerId ? [ownerId] : [])]}
           disabled={busyId !== null}
           onPick={(person) => void add(person)}
-          placeholder="Type a name or email, then pick the person"
+          placeholder="Search colleague by name or email to allow access..."
         />
 
         <div className="space-y-2">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Has access
+            Colleagues with delegated access ({delegates.length})
           </p>
           {delegates.length === 0 ? (
             <p className="rounded-md border border-dashed px-3 py-3 text-sm text-muted-foreground">
-              Only the mailbox owner can open this inbox right now.
+              Only you have access to this mailbox. Select a colleague above to allow them to manage
+              and send emails on your behalf.
             </p>
           ) : (
             <ul className="space-y-1.5">

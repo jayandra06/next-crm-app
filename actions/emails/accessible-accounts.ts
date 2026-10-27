@@ -2,10 +2,9 @@
 
 import { unstable_cache } from "next/cache";
 import { getSession } from "@/lib/auth-server";
-import { requireRole, AuthorizationError } from "@/lib/authz";
 import { prismadb } from "@/lib/prisma";
 import { serializeDecimalsList } from "@/lib/serialize-decimals";
-import type { MailboxAccessKind } from "@/lib/email/mailbox-access";
+import { isMailboxAdmin, type MailboxAccessKind } from "@/lib/email/mailbox-access";
 
 export type AccessibleEmailAccount = {
   id: string;
@@ -64,23 +63,16 @@ async function loadAccessibleAccounts(
 
 const cachedAccountsForUser = unstable_cache(
   async (userId: string, elevated: boolean) => loadAccessibleAccounts(userId, elevated),
-  ["accessible-email-accounts-v3"],
+  ["accessible-email-accounts-v5"],
   { revalidate: 120, tags: ["accessible-email-accounts"] }
 );
 
-/** Mailboxes the signed-in user may view (own, delegated, or all for admin/manager). */
+/** Mailboxes the signed-in user may view (own, delegated, or all for CEO admin). */
 export async function getAccessibleEmailAccounts(): Promise<AccessibleEmailAccount[]> {
   const session = await getSession();
   const userId = session?.user?.id;
   if (!userId) return [];
 
-  let elevated = false;
-  try {
-    await requireRole(["admin", "manager"]);
-    elevated = true;
-  } catch (e) {
-    if (!(e instanceof AuthorizationError)) throw e;
-  }
-
+  const elevated = await isMailboxAdmin(userId);
   return serializeDecimalsList(await cachedAccountsForUser(userId, elevated));
 }

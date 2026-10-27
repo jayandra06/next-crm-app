@@ -162,7 +162,10 @@ async function EmailMailbox({
     );
   }
 
-  const activeAccountId = requestedAccountId ?? connectedAccounts[0]?.id;
+  const isRequestedValid = Boolean(
+    requestedAccountId && connectedAccounts.some((a) => a.id === requestedAccountId)
+  );
+  const activeAccountId = isRequestedValid ? requestedAccountId : connectedAccounts[0]?.id;
   const activeMailboxAddress =
     connectedAccounts.find((a) => a.id === activeAccountId)?.username ?? "";
 

@@ -23,6 +23,7 @@ const LeadsPage = async () => {
     <Container
       title={t("leads.pageTitle")}
       description={t("leads.pageDescription")}
+      feature="leads"
     >
       <Suspense fallback={<CrmTableSkeleton />}>
         <LeadsContent />

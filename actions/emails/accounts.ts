@@ -23,8 +23,8 @@ async function requireSession() {
 }
 
 export async function getEmailAccounts() {
+  const userId = await requireSession();
   try {
-    const userId = await requireSession();
     const accounts = await prismadb.emailAccount.findMany({
       where: { userId },
       select: {
@@ -62,6 +62,53 @@ export async function getEmailAccounts() {
     );
   } catch (error) {
     console.error("[getEmailAccounts] Error:", error);
+    return [];
+  }
+}
+
+export type DelegatedMailbox = {
+  id: string;
+  label: string;
+  username: string;
+  fromName: string | null;
+  sendProvider: EmailSendProvider;
+  ownerName: string | null;
+  ownerEmail: string | null;
+  ownerWorkEmail: string | null;
+};
+
+export async function getDelegatedToMeAccounts(): Promise<DelegatedMailbox[]> {
+  const userId = await requireSession();
+  try {
+    const accounts = await prismadb.emailAccount.findMany({
+      where: {
+        isActive: true,
+        delegateUserIds: { has: userId },
+      },
+      select: {
+        id: true,
+        label: true,
+        username: true,
+        fromName: true,
+        sendProvider: true,
+        user: { select: { id: true, name: true, email: true, workEmail: true } },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+    return serializeDecimalsList(
+      accounts.map((a) => ({
+        id: a.id,
+        label: a.label,
+        username: a.username,
+        fromName: a.fromName,
+        sendProvider: a.sendProvider,
+        ownerName: a.user.name,
+        ownerEmail: a.user.email,
+        ownerWorkEmail: a.user.workEmail,
+      }))
+    );
+  } catch (error) {
+    console.error("[getDelegatedToMeAccounts] Error:", error);
     return [];
   }
 }

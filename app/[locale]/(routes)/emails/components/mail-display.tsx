@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 import {
   Archive,
@@ -8,6 +9,7 @@ import {
   ChevronLeft,
   Forward,
   MailOpen,
+  Settings,
   Sparkles,
   MoreVertical,
   Reply,
@@ -16,6 +18,8 @@ import {
   ShieldCheck,
   Trash2,
 } from "lucide-react";
+
+import { FeatureEmailSettingsButton } from "@/components/email/FeatureEmailSettingsButton";
 
 import {
   DropdownMenuContent,
@@ -426,8 +430,16 @@ export function MailDisplay({
                   Report spam
                 </DropdownMenuItem>
               )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href="/emails/settings?feature=emails" className="flex items-center gap-2">
+                  <Settings className="h-4 w-4" />
+                  <span>Email settings</span>
+                </Link>
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          <FeatureEmailSettingsButton feature="emails" size="icon" showLabel={false} />
         </div>
       </div>
 

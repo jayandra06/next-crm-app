@@ -23,6 +23,7 @@ import {
 import LinkedInConnectButton from "./LinkedInConnectButton";
 import { LinkedInIcpPanel, LinkedInOrgAiBrief } from "./LinkedInAiPanel";
 import { extractLinkedInPostSnippets } from "@/lib/linkedin/post-text";
+import { FeatureEmailSettingsButton } from "@/components/email/FeatureEmailSettingsButton";
 
 type LinkedInPageProps = {
   searchParams: Promise<{ connected?: string; organizationId?: string; reason?: string }>;
@@ -81,13 +82,16 @@ export default async function LinkedInPage({ searchParams }: LinkedInPageProps) 
                 </p>
               </div>
             </div>
-            {connection.connected ? (
-              <span className="inline-flex h-12 items-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-6 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
-                LinkedIn connected
-              </span>
-            ) : (
-              <LinkedInConnectButton action={connectLinkedIn} />
-            )}
+            <div className="flex flex-wrap items-center gap-2">
+              <FeatureEmailSettingsButton feature="linkedin" />
+              {connection.connected ? (
+                <span className="inline-flex h-10 items-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+                  LinkedIn connected
+                </span>
+              ) : (
+                <LinkedInConnectButton action={connectLinkedIn} />
+              )}
+            </div>
           </div>
           {justConnected && connection.connected ? (
             <p className="relative mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-800 dark:text-emerald-300">
