@@ -52,7 +52,7 @@ export function HeaderLive({ user, initialLive }: Props) {
   const [searchOpen, setSearchOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-30 flex h-[3.25rem] shrink-0 items-center gap-2 border-b border-border/50 bg-background px-2 sm:gap-3 sm:px-5">
+    <header className="sticky top-0 z-30 my-2 flex h-[3.25rem] shrink-0 items-center gap-2 border-b border-border/50 bg-background px-2 sm:my-3 sm:gap-3 sm:px-5">
       {searchOpen ? (
         <div className="flex min-w-0 flex-1 items-center gap-2 sm:hidden">
           <div className="min-w-0 flex-1">
