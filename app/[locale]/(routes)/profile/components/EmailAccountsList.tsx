@@ -227,12 +227,17 @@ export function EmailAccountsList(props: EmailAccountsListProps) {
                     {acc.user.name ?? acc.user.email}
                   </p>
                 )}
-                {acc.delegates.length > 0 && (
-                  <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                {acc.delegates.length > 0 ? (
+                  <p className="flex items-start gap-1.5 text-xs text-blue-600 dark:text-blue-400 font-medium">
                     <UserPlus className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                     <span>
-                      Shared with {acc.delegates.map((person) => person.name).join(", ")}
+                      Delegated to: {acc.delegates.map((person) => person.name).join(", ")}
                     </span>
+                  </p>
+                ) : (
+                  <p className="flex items-start gap-1.5 text-xs text-muted-foreground/80">
+                    <UserPlus className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <span>Delegated access: None (click &quot;Delegate Access&quot; to allow a colleague)</span>
                   </p>
                 )}
                 {acc.lastSyncedAt && (
@@ -253,9 +258,9 @@ export function EmailAccountsList(props: EmailAccountsListProps) {
 
             <div className="flex shrink-0 items-center gap-2 self-start sm:self-center">
               {!legacy && (
-                <Button type="button" variant="outline" className="gap-2" onClick={() => openShare(acc)}>
-                  <UserPlus className="h-4 w-4" />
-                  Share
+                <Button type="button" variant="outline" className="gap-2 text-xs sm:text-sm font-medium" onClick={() => openShare(acc)}>
+                  <UserPlus className="h-4 w-4 text-primary" />
+                  Delegate Access
                 </Button>
               )}
               <DropdownMenu>
@@ -272,7 +277,7 @@ export function EmailAccountsList(props: EmailAccountsListProps) {
                 {!legacy && (
                   <DropdownMenuItem onClick={() => openShare(acc)}>
                     <UserPlus className="mr-2 h-4 w-4" />
-                    Share access
+                    Delegate access
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />

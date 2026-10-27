@@ -27,7 +27,7 @@ export function chatPreviewLine(
   if (!preview?.lastBody) return mode === "general" ? "Team channel" : "Say hello";
   if (mode === "dm") return preview.lastBody;
   const mine =
-    Boolean(currentUserId) && preview.lastUserId?.toLowerCase() === currentUserId.toLowerCase();
+    Boolean(currentUserId) && preview.lastUserId?.toLowerCase() === currentUserId?.toLowerCase();
   const who = mine ? "You" : preview.lastUserName?.split(" ")[0] || "Team";
   return `${who}: ${preview.lastBody}`;
 }

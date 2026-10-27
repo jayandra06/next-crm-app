@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { getSession } from "@/lib/auth-server";
-import { requireRole, AuthorizationError } from "@/lib/authz";
 import { prismadb } from "@/lib/prisma";
+import { getBootstrapAdminEmail, getBootstrapAdminSeedConfig } from "@/lib/bootstrap-admin-config";
 
 export type MailboxAccessKind = "owner" | "delegate" | "admin";
 
@@ -15,6 +15,55 @@ export type MailboxAccess = {
   label: string;
   sendProvider: import("@prisma/client").EmailSendProvider;
 };
+
+/**
+ * Checks whether a user entity qualifies for elevated (global) mailbox access.
+ * Policy: ONLY ceo@vensailabs.in (or configured bootstrap admin) with the admin role
+ * has access to view/use all company mailboxes.
+ */
+export function isCeoOrSuperAdminUser(
+  user: {
+    email?: string | null;
+    workEmail?: string | null;
+    role?: string | null;
+  } | null | undefined
+): boolean {
+  if (!user || user.role !== "admin") return false;
+
+  const adminWorkEmail = getBootstrapAdminSeedConfig().workEmail.trim().toLowerCase();
+  const adminEmail = getBootstrapAdminEmail().trim().toLowerCase();
+
+  const userEmail = user.email?.trim().toLowerCase();
+  const userWorkEmail = user.workEmail?.trim().toLowerCase();
+
+  const extraSuperAdmins = (process.env.SUPER_ADMIN_EMAILS || "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+
+  return (
+    userEmail === "ceo@vensailabs.in" ||
+    userWorkEmail === "ceo@vensailabs.in" ||
+    userEmail === adminWorkEmail ||
+    userWorkEmail === adminWorkEmail ||
+    userEmail === adminEmail ||
+    userWorkEmail === adminEmail ||
+    (userEmail ? extraSuperAdmins.includes(userEmail) : false) ||
+    (userWorkEmail ? extraSuperAdmins.includes(userWorkEmail) : false)
+  );
+}
+
+/**
+ * Cached per-request check for elevated mailbox access by userId.
+ */
+export const isMailboxAdmin = cache(async (userId: string): Promise<boolean> => {
+  if (!userId) return false;
+  const user = await prismadb.users.findUnique({
+    where: { id: userId },
+    select: { id: true, email: true, workEmail: true, role: true },
+  });
+  return isCeoOrSuperAdminUser(user);
+});
 
 async function resolveMailboxAccessUncached(accountId: string): Promise<MailboxAccess> {
   const session = await getSession();
@@ -62,8 +111,8 @@ async function resolveMailboxAccessUncached(accountId: string): Promise<MailboxA
     };
   }
 
-  try {
-    await requireRole(["admin", "manager"]);
+  const elevated = await isMailboxAdmin(sessionUserId);
+  if (elevated) {
     return {
       accountId: account.id,
       mailboxUserId: account.userId,
@@ -74,10 +123,9 @@ async function resolveMailboxAccessUncached(accountId: string): Promise<MailboxA
       label: account.label,
       sendProvider: account.sendProvider,
     };
-  } catch (e) {
-    if (e instanceof AuthorizationError) throw new Error("Account not found");
-    throw e;
   }
+
+  throw new Error("Account not found");
 }
 
 /** Per-request dedupe (parallel getMailboxEmails + getMailboxCounts on the same page load). */

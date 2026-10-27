@@ -2,8 +2,9 @@
 
 import { revalidatePath, revalidateTag } from "next/cache";
 import { prismadb } from "@/lib/prisma";
-import { AuthorizationError, requireAuthenticated, requireRole } from "@/lib/authz";
+import { requireAuthenticated } from "@/lib/authz";
 import { loadMailboxDelegates, type MailboxDelegate } from "@/lib/email/mailbox-delegates";
+import { isMailboxAdmin } from "@/lib/email/mailbox-access";
 
 export type { MailboxDelegate };
 
@@ -24,36 +25,33 @@ async function mailboxForDelegateEdit(accountId: string) {
   });
   if (!account) throw new Error("Mailbox not found");
   if (account.userId === actor.id) return account;
-  try {
-    await requireRole(["admin"]);
-    return account;
-  } catch (e) {
-    if (e instanceof AuthorizationError) {
-      throw new Error("You can share a mailbox you own. An admin can share any mailbox.");
-    }
-    throw e;
-  }
+  const elevated = await isMailboxAdmin(actor.id);
+  if (elevated) return account;
+  throw new Error("You can share a mailbox you own. Only the CEO can manage delegated access for any mailbox.");
 }
 
-export async function searchUsersForMailboxShare(query: string): Promise<MailboxDelegate[]> {
+export async function searchUsersForMailboxShare(query: string = ""): Promise<MailboxDelegate[]> {
   await requireAuthenticated();
   const q = query.trim();
-  if (q.length < 2) return [];
 
   const users = await prismadb.users.findMany({
     where: {
       userStatus: "ACTIVE",
       banned: false,
-      OR: [
-        { name: { contains: q, mode: "insensitive" } },
-        { email: { contains: q, mode: "insensitive" } },
-        { workEmail: { contains: q, mode: "insensitive" } },
-        { username: { contains: q, mode: "insensitive" } },
-      ],
+      ...(q.length > 0
+        ? {
+            OR: [
+              { name: { contains: q, mode: "insensitive" } },
+              { email: { contains: q, mode: "insensitive" } },
+              { workEmail: { contains: q, mode: "insensitive" } },
+              { username: { contains: q, mode: "insensitive" } },
+            ],
+          }
+        : {}),
     },
     select: { id: true, name: true, email: true, workEmail: true },
     orderBy: [{ name: "asc" }, { email: "asc" }],
-    take: 8,
+    take: q.length > 0 ? 10 : 30,
   });
 
   return users.map((u) => ({
@@ -62,6 +60,10 @@ export async function searchUsersForMailboxShare(query: string): Promise<Mailbox
     email: u.email,
     workEmail: u.workEmail,
   }));
+}
+
+export async function getActiveTeamUsersForDelegation(): Promise<MailboxDelegate[]> {
+  return searchUsersForMailboxShare("");
 }
 
 export async function addMailboxDelegate(accountId: string, userId: string): Promise<MailboxDelegate[]> {

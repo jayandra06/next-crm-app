@@ -4,6 +4,7 @@ import { getCanvaConnectionState, recentCanvaDesigns } from "@/actions/canva/des
 import { hasCanvaOAuth, canvaRedirectUri } from "@/lib/canva/config";
 import { Button } from "@/components/ui/button";
 import { DisconnectCanvaButton } from "./DisconnectCanvaButton";
+import { FeatureEmailSettingsButton } from "@/components/email/FeatureEmailSettingsButton";
 
 export default async function CanvaAdminPage({
   searchParams,
@@ -33,11 +34,16 @@ export default async function CanvaAdminPage({
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-4 py-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Canva</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Connect a Canva account so campaign templates can be designed in Canva and imported back as HTML or an image.
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Canva</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Connect a Canva account so campaign templates can be designed in Canva and imported back as HTML or an image.
+          </p>
+        </div>
+        <div className="shrink-0">
+          <FeatureEmailSettingsButton feature="canva" />
+        </div>
       </div>
 
       {justConnected && (

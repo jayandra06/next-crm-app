@@ -69,6 +69,11 @@ export const auth = betterAuth({
         required: false,
         input: false,
       },
+      workEmail: {
+        type: "string",
+        required: false,
+        input: false,
+      },
       mustChangePassword: {
         type: "boolean",
         defaultValue: false,

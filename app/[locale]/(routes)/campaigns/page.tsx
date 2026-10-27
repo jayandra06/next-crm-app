@@ -2,6 +2,7 @@ import { getCampaigns } from "@/actions/campaigns/get-campaigns";
 import CampaignsView from "./components/CampaignsView";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { FeatureEmailSettingsButton } from "@/components/email/FeatureEmailSettingsButton";
 
 export default async function CampaignsPage() {
   const campaigns = await getCampaigns();
@@ -12,9 +13,12 @@ export default async function CampaignsPage() {
           <h1 className="text-2xl font-bold">Campaigns</h1>
           <p className="text-muted-foreground">Manage your email campaigns</p>
         </div>
-        <Button asChild>
-          <Link href="/campaigns/new">+ New Campaign</Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <FeatureEmailSettingsButton feature="marketing" />
+          <Button asChild>
+            <Link href="/campaigns/new">+ New Campaign</Link>
+          </Button>
+        </div>
       </div>
       <CampaignsView data={campaigns} />
     </div>
