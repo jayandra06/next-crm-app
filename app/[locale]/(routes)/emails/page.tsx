@@ -165,7 +165,25 @@ async function EmailMailbox({
   const isRequestedValid = Boolean(
     requestedAccountId && connectedAccounts.some((a) => a.id === requestedAccountId)
   );
-  const activeAccountId = isRequestedValid ? requestedAccountId : connectedAccounts[0]?.id;
+
+  // If no specific account requested in query params, default to Jayandra's personal account (or first own account)
+  const defaultAccount =
+    connectedAccounts.find((a) => {
+      const name = (a.ownerName || "").toLowerCase();
+      const user = (a.username || "").toLowerCase();
+      const mail = (a.ownerEmail || "").toLowerCase();
+      const lbl = (a.label || "").toLowerCase();
+      return (
+        name.includes("jayandra") ||
+        lbl.includes("jayandra") ||
+        user.includes("ceo@vensailabs.in") ||
+        mail.includes("ceo@vensailabs.in")
+      );
+    }) ??
+    connectedAccounts.find((a) => a.accessKind === "owner") ??
+    connectedAccounts[0];
+
+  const activeAccountId = isRequestedValid ? requestedAccountId : defaultAccount?.id;
   const activeMailboxAddress =
     connectedAccounts.find((a) => a.id === activeAccountId)?.username ?? "";
 
